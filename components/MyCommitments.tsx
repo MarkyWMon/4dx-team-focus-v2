@@ -136,6 +136,27 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const isCurrent = selectedWeekId === realCurrentWeekId;
   const canAdd = !isPast && !isFull;
 
+  // Calculate commitment counts per lead measure for enforcement
+  const measureCommitmentCounts = leadMeasures.map(measure => {
+    const count = commitments.filter(c =>
+      c.leadMeasureId === measure.id ||
+      c.leadMeasureId === measure.name ||
+      c.leadMeasureName === measure.name
+    ).length;
+    return {
+      ...measure,
+      currentCount: count,
+      isFull: count >= measure.target,
+      remaining: Math.max(0, measure.target - count)
+    };
+  });
+
+  // Total target is sum of all lead measure targets
+  const totalTarget = leadMeasures.reduce((sum, m) => sum + m.target, 0);
+  const totalCommitted = commitments.length;
+  const allMeasuresMet = measureCommitmentCounts.every(m => m.currentCount >= m.target);
+
+
   useEffect(() => {
     if (cachedSuggestions && cachedSuggestions.length > 0 && suggestions.length === 0) {
       setSuggestions(cachedSuggestions);
@@ -660,7 +681,44 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
           <p className="text-blue-100 mt-1 font-light relative z-10">
             Select high-leverage actions to impact our WIG.
           </p>
+
+          {/* Lead Measure Requirements Guide */}
+          {leadMeasures.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2 relative z-10">
+              {measureCommitmentCounts.map(measure => (
+                <div
+                  key={measure.id}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${measure.isFull
+                      ? 'bg-green-500/20 border border-green-400/40 text-green-200'
+                      : 'bg-white/10 border border-white/20 text-white'
+                    }`}
+                >
+                  <span className="uppercase tracking-wider">{measure.name}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${measure.isFull
+                      ? 'bg-green-400 text-green-900'
+                      : 'bg-white/20 text-white'
+                    }`}>
+                    {measure.currentCount}/{measure.target}
+                  </span>
+                  {measure.isFull && (
+                    <svg className="w-3.5 h-3.5 text-green-300" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+              ))}
+              {allMeasuresMet && (
+                <div className="flex items-center gap-1 px-3 py-1.5 bg-green-500/30 border border-green-400/50 rounded-lg text-green-200 text-xs font-bold">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  All targets met!
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
 
         <div className="p-6">
           {showSuggestions && (
