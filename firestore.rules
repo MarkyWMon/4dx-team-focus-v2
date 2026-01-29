@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Safely retrieves member data. If the document doesn't exist yet (first login),
+    // it returns a dummy role to prevent the rules engine from erroring out.
+    function getMemberData() {
+      let path = /databases/$(database)/documents/members/$(request.auth.uid);
+      return exists(path) ? get(path).data : {"role": "NONE"};
+    }
+
+    function isAdmin() {
+      return request.auth != null && getMemberData().role == 'ADMIN';
+    }
+
+    function isManager() {
+      return request.auth != null && (getMemberData().role == 'MANAGER' || getMemberData().role == 'ADMIN');
+    }
+
+    // --- Members Collection ---
+    match /members/{memberId} {
+      allow read, list: if request.auth != null;
+      
+      // CREATE: Allow any auth user to create their OWN record (Bootstrapping)
+      allow create: if request.auth != null && request.auth.uid == memberId;
+      
+      // UPDATE: Allow owner to update their lastLogin/profile, or Admins to manage others
+      allow update: if request.auth != null && (request.auth.uid == memberId || isAdmin());
+      
+      // DELETE: Only Admins can purge users
+      allow delete: if isAdmin();
+    }
+
+    // --- Commitments Collection ---
+    match /commitments/{commitmentId} {
+      // Read access for everyone (Scoreboard visibility)
+      allow read: if request.auth != null;
+      
+      // CREATE: User must be authenticated and the memberId in the data must match their UID
+      allow create: if request.auth != null && request.resource.data.memberId == request.auth.uid;
+      
+      // UPDATE: Owner can edit/toggle, Managers/Admins can update status
+      allow update: if request.auth != null && (resource.data.memberId == request.auth.uid || isManager());
+      
+      // DELETE: Only the owner or an Admin can remove a commitment
+      allow delete: if request.auth != null && (resource.data.memberId == request.auth.uid || isAdmin());
+    }
+
+    // --- Lead Measures ---
+    match /lead_measures/{measureId} {
+      allow read: if request.auth != null;
+      allow write: if isManager();
+    }
+
+    // --- Audit Logs ---
+    match /audit_logs/{logId} {
+      allow read: if isManager();
+      allow create: if request.auth != null;
+    }
+
+    // --- Settings Collection (WIG Configuration, etc.) ---
+    match /settings/{settingId} {
+      allow read: if request.auth != null;
+      allow write: if isManager();
+    }
+
+    // --- WIG Sessions ---
+    match /wig_sessions/{sessionId} {
+      allow read: if request.auth != null;
+      allow write: if isManager();
+    }
+
+    // --- Tickets (SolarWinds Helpdesk) ---
+    match /tickets/{ticketId} {
+      allow read: if request.auth != null;
+      allow write: if isManager();
+    }
+
+    // --- Shared Daily Inspirations (AI Cache) ---
+    match /daily_inspirations/{dateId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // --- Commitment Templates ---
+    match /commitment_templates/{templateId} {
+      allow read: if request.auth != null;
+      allow write: if isManager();
+    }
+    
+    // Global Deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

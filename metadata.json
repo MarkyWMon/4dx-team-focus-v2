@@ -1,0 +1,7 @@
+{
+  "name": "4DX Team Focus",
+  "description": "A 4DX-style execution dashboard for IT support teams to track weekly commitments (WIGs) and monitor execution performance.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

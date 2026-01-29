@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BHASVIC | 4DX Strategy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link id="dynamic-fonts" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['var(--body-font, Roboto)', 'sans-serif'],
+            display: ['var(--title-font, Poppins)', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              red: 'var(--primary-color, #E30613)',
+              darkRed: '#9E1B32',
+              navy: 'var(--secondary-color, #003057)',
+              green: 'var(--success-color, #82BC00)',
+              orange: 'var(--warning-color, #F37A1F)',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary-color: #E30613;
+      --secondary-color: #003057;
+      --success-color: #82BC00;
+      --warning-color: #F37A1F;
+      --title-font: 'Poppins';
+      --body-font: 'Roboto';
+    }
+
+    body {
+      font-family: var(--body-font), sans-serif;
+      background-color: #f8fafc;
+      color: #1f2937;
+      margin: 0;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-family: var(--title-font), sans-serif;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.4s ease-out forwards;
+    }
+
+    #root:empty {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
