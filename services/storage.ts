@@ -14,7 +14,7 @@ import {
   limit,
   getCountFromServer,
   writeBatch
-} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+} from 'firebase/firestore';
 
 const STORAGE_KEYS = {
   MEMBERS: '4dx_members',
