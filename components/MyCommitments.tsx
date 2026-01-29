@@ -105,7 +105,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
 
       // If aligned, auto-submit
       if (result?.isAligned && result.linkedLeadMeasureId) {
-        onAdd(newCommitment.trim(), result.linkedLeadMeasureId, result.linkedLeadMeasureName || undefined);
+        safeOnAdd(newCommitment.trim(), result.linkedLeadMeasureId, result.linkedLeadMeasureName || undefined);
         setShowValidationModal(false);
         setPendingCommitment('');
       }
@@ -113,7 +113,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     } catch (e) {
       console.error("Validation error:", e);
       // On error, allow submission without alignment (graceful degradation)
-      onAdd(newCommitment.trim());
+      safeOnAdd(newCommitment.trim());
       setShowValidationModal(false);
       setPendingCommitment('');
     } finally {
@@ -127,7 +127,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     const matchedMeasure = leadMeasures.find(m =>
       m.name.toLowerCase().includes(template.category.replace('_', ' '))
     );
-    onAdd(template.description, matchedMeasure?.id, matchedMeasure?.name);
+    safeOnAdd(template.description, matchedMeasure?.id, matchedMeasure?.name);
     setShowTemplates(false);
   };
 
@@ -147,7 +147,10 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
       ...measure,
       currentCount: count,
       isFull: count >= measure.target,
-      remaining: Math.max(0, measure.target - count)
+      isOver: count > measure.target,
+      isUnder: count < measure.target,
+      remaining: Math.max(0, measure.target - count),
+      excess: Math.max(0, count - measure.target)
     };
   });
 
@@ -155,6 +158,37 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const totalTarget = leadMeasures.reduce((sum, m) => sum + m.target, 0);
   const totalCommitted = commitments.length;
   const allMeasuresMet = measureCommitmentCounts.every(m => m.currentCount >= m.target);
+
+  // Warning states
+  const overCommittedMeasures = measureCommitmentCounts.filter(m => m.isOver);
+  const underCommittedMeasures = measureCommitmentCounts.filter(m => m.isUnder);
+  const hasImbalance = overCommittedMeasures.length > 0 || (totalCommitted >= totalTarget && underCommittedMeasures.length > 0);
+  const isSlotsFilledButImbalanced = totalCommitted >= totalTarget && underCommittedMeasures.length > 0;
+
+  // Helper to check if a measure is at capacity
+  const isMeasureAtCapacity = (measureIdOrName?: string): boolean => {
+    if (!measureIdOrName) return false;
+    const measure = measureCommitmentCounts.find(m =>
+      m.id === measureIdOrName || m.name === measureIdOrName
+    );
+    return measure ? measure.currentCount >= measure.target : false;
+  };
+
+  // Get measures that still have capacity
+  const availableMeasures = measureCommitmentCounts.filter(m => m.currentCount < m.target);
+
+  // Wrapper to enforce capacity before adding
+  const safeOnAdd = (desc: string, leadMeasureId?: string, leadMeasureName?: string): boolean => {
+    const measureKey = leadMeasureId || leadMeasureName;
+    if (measureKey && isMeasureAtCapacity(measureKey)) {
+      const measureName = measureCommitmentCounts.find(m => m.id === measureKey || m.name === measureKey)?.name || measureKey;
+      alert(`Cannot add: "${measureName}" is already at capacity (${measureCommitmentCounts.find(m => m.id === measureKey || m.name === measureKey)?.target || 0
+        } commitments). Please choose a different Lead Measure.`);
+      return false;
+    }
+    onAdd(desc, leadMeasureId, leadMeasureName);
+    return true;
+  };
 
 
   useEffect(() => {
@@ -296,7 +330,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     setSuggestions(prev => prev.map(s => s.id === id ? { ...s, isExiting: true } : s));
     setTimeout(() => {
       // AI suggestions come with lead measure data - pass it through
-      onAdd(item.commitment, item.leadMeasureId, item.leadMeasureName);
+      safeOnAdd(item.commitment, item.leadMeasureId, item.leadMeasureName);
       setSuggestions(prev => prev.filter(s => s.id !== id));
     }, 400);
   };
@@ -492,21 +526,28 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                       <p className="text-blue-900 text-sm font-medium mb-3">{checkResult.suggestedAlternative}</p>
                       <p className="text-blue-600 text-xs mb-2">Select which Lead Measure this applies to:</p>
                       <div className="flex flex-wrap gap-2">
-                        {leadMeasures.map(m => (
-                          <button
-                            key={m.id}
-                            onClick={() => {
-                              // Use the suggested alternative with the selected lead measure
-                              onAdd(checkResult.suggestedAlternative!, m.id, m.name);
-                              setShowValidationModal(false);
-                              setPendingCommitment('');
-                              setCheckResult(null);
-                            }}
-                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors"
-                          >
-                            {m.name}
-                          </button>
-                        ))}
+                        {leadMeasures.map(m => {
+                          const measureData = measureCommitmentCounts.find(mc => mc.id === m.id || mc.name === m.name);
+                          const isAtCapacity = measureData ? measureData.currentCount >= measureData.target : false;
+                          return (
+                            <button
+                              key={m.id}
+                              disabled={isAtCapacity}
+                              onClick={() => {
+                                safeOnAdd(checkResult.suggestedAlternative!, m.id, m.name);
+                                setShowValidationModal(false);
+                                setPendingCommitment('');
+                                setCheckResult(null);
+                              }}
+                              className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors ${isAtCapacity
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                }`}
+                            >
+                              {m.name} {isAtCapacity && '(Full)'}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -516,20 +557,28 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                     <div className="border-t border-slate-100 pt-4">
                       <p className="text-slate-600 text-xs font-semibold mb-3">Or select a Lead Measure manually:</p>
                       <div className="flex flex-wrap gap-2">
-                        {leadMeasures.map(m => (
-                          <button
-                            key={m.id}
-                            onClick={() => {
-                              onAdd(pendingCommitment, m.id, m.name);
-                              setShowValidationModal(false);
-                              setPendingCommitment('');
-                              setCheckResult(null);
-                            }}
-                            className="px-3 py-2 bg-slate-100 hover:bg-brand-navy hover:text-white rounded-lg text-xs font-semibold transition-colors"
-                          >
-                            {m.name}
-                          </button>
-                        ))}
+                        {leadMeasures.map(m => {
+                          const measureData = measureCommitmentCounts.find(mc => mc.id === m.id || mc.name === m.name);
+                          const isAtCapacity = measureData ? measureData.currentCount >= measureData.target : false;
+                          return (
+                            <button
+                              key={m.id}
+                              disabled={isAtCapacity}
+                              onClick={() => {
+                                safeOnAdd(pendingCommitment, m.id, m.name);
+                                setShowValidationModal(false);
+                                setPendingCommitment('');
+                                setCheckResult(null);
+                              }}
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${isAtCapacity
+                                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  : 'bg-slate-100 hover:bg-brand-navy hover:text-white'
+                                }`}
+                            >
+                              {m.name} {isAtCapacity && '(Full)'}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -688,19 +737,28 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
               {measureCommitmentCounts.map(measure => (
                 <div
                   key={measure.id}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${measure.isFull
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${measure.isOver
+                    ? 'bg-amber-500/20 border border-amber-400/40 text-amber-200'
+                    : measure.isFull
                       ? 'bg-green-500/20 border border-green-400/40 text-green-200'
                       : 'bg-white/10 border border-white/20 text-white'
                     }`}
                 >
                   <span className="uppercase tracking-wider">{measure.name}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${measure.isFull
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${measure.isOver
+                    ? 'bg-amber-400 text-amber-900'
+                    : measure.isFull
                       ? 'bg-green-400 text-green-900'
                       : 'bg-white/20 text-white'
                     }`}>
                     {measure.currentCount}/{measure.target}
                   </span>
-                  {measure.isFull && (
+                  {measure.isOver && (
+                    <svg className="w-3.5 h-3.5 text-amber-300" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  {measure.isFull && !measure.isOver && (
                     <svg className="w-3.5 h-3.5 text-green-300" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -713,6 +771,21 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   All targets met!
+                </div>
+              )}
+              {/* Warning for imbalanced commitments */}
+              {hasImbalance && (
+                <div className="flex items-center gap-1 px-3 py-1.5 bg-amber-500/30 border border-amber-400/50 rounded-lg text-amber-200 text-xs font-bold">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {overCommittedMeasures.length > 0 && (
+                    <span>Too many: {overCommittedMeasures.map(m => m.name).join(', ')}</span>
+                  )}
+                  {overCommittedMeasures.length > 0 && underCommittedMeasures.length > 0 && <span className="mx-1">|</span>}
+                  {isSlotsFilledButImbalanced && underCommittedMeasures.length > 0 && (
+                    <span>Need more: {underCommittedMeasures.map(m => m.name).join(', ')}</span>
+                  )}
                 </div>
               )}
             </div>
