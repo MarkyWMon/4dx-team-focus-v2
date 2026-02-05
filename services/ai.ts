@@ -82,16 +82,10 @@ export const AIService = {
         ]
       `;
 
-      console.log("🤖 AI: Starting commitment generation with context...", {
-        tickets: rawTickets.length,
-        measures: leadMeasures.length,
-        templates: templates.length
-      });
-
       // Always initialize with Vite environment variable
       const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
       if (!apiKey) {
-        console.warn('Google AI API key not configured. Set VITE_GOOGLE_AI_API_KEY in .env file');
+        console.warn('AI: API key not configured.');
         return [];
       }
       const ai = new GoogleGenAI({ apiKey });

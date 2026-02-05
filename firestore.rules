@@ -19,7 +19,10 @@ service cloud.firestore {
 
     // --- Members Collection ---
     match /members/{memberId} {
-      allow read, list: if request.auth != null;
+      // Only Managers and Admins can list all members. 
+      // Individual users can read their own record.
+      allow read: if request.auth != null && (request.auth.uid == memberId || isManager());
+      allow list: if isManager();
       
       // CREATE: Allow any auth user to create their OWN record (Bootstrapping)
       allow create: if request.auth != null && request.auth.uid == memberId;
@@ -31,18 +34,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ... (commitments, lead_measures, audit_logs rows stay same) ...
     // --- Commitments Collection ---
     match /commitments/{commitmentId} {
-      // Read access for everyone (Scoreboard visibility)
       allow read: if request.auth != null;
-      
-      // CREATE: User must be authenticated and the memberId in the data must match their UID
       allow create: if request.auth != null && request.resource.data.memberId == request.auth.uid;
-      
-      // UPDATE: Owner can edit/toggle, Managers/Admins can update status
       allow update: if request.auth != null && (resource.data.memberId == request.auth.uid || isManager());
-      
-      // DELETE: Only the owner or an Admin can remove a commitment
       allow delete: if request.auth != null && (resource.data.memberId == request.auth.uid || isAdmin());
     }
 
@@ -55,10 +52,11 @@ service cloud.firestore {
     // --- Audit Logs ---
     match /audit_logs/{logId} {
       allow read: if isManager();
+      // Only allow creation of new logs, no updates or deletes
       allow create: if request.auth != null;
     }
 
-    // --- Settings Collection (WIG Configuration, etc.) ---
+    // --- Settings Collection ---
     match /settings/{settingId} {
       allow read: if request.auth != null;
       allow write: if isManager();
@@ -70,7 +68,7 @@ service cloud.firestore {
       allow write: if isManager();
     }
 
-    // --- Tickets (SolarWinds Helpdesk) ---
+    // --- Tickets ---
     match /tickets/{ticketId} {
       allow read: if request.auth != null;
       allow write: if isManager();
@@ -78,7 +76,9 @@ service cloud.firestore {
 
     // --- Shared Daily Inspirations (AI Cache) ---
     match /daily_inspirations/{dateId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      // Only managers/admins can save new inspirations
+      allow write: if isManager();
     }
 
     // --- Commitment Templates ---

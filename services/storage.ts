@@ -26,27 +26,37 @@ const STORAGE_KEYS = {
 };
 
 const saveLocal = <T>(key: string, data: T): void => {
-  try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) { }
+  try {
+    const json = JSON.stringify(data);
+    // Basic obfuscation to prevent plain-text reading in DevTools
+    const obfuscated = btoa(encodeURIComponent(json));
+    localStorage.setItem(key, obfuscated);
+  } catch (e) { }
 };
 
 const loadLocal = <T>(key: string, defaultVal: T): T => {
   try {
     const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultVal;
+    if (!item) return defaultVal;
+
+    // Fallback for existing plain-text data
+    if (item.startsWith('[') || item.startsWith('{')) {
+      return JSON.parse(item);
+    }
+
+    const deobfuscated = decodeURIComponent(atob(item));
+    return JSON.parse(deobfuscated);
   } catch (e) { return defaultVal; }
 };
 
 export const StorageService = {
   isAdminExists: async (): Promise<boolean> => {
-    console.log("Checking if Admin exists in Firestore...");
     try {
       const q = query(collection(db, "members"), where("role", "==", "ADMIN"), limit(1));
       const snapshot = await getDocs(q);
-      const exists = !snapshot.empty;
-      console.log("Admin exists check result:", exists);
-      return exists;
+      return !snapshot.empty;
     } catch (e: any) {
-      console.warn("Could not verify Admin existence (CORS/Permissions). This usually happens on a fresh DB.", e.message);
+      console.warn("Could not verify Admin existence (CORS/Permissions).");
       return false;
     }
   },
@@ -137,7 +147,21 @@ export const StorageService = {
     console.log(`Provisioning user ${email} with role ${role}...`);
     if (!uid || !email) throw new Error("Cannot provision: UID or Email missing.");
 
-    const avatar = (name || email || "??")
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) throw new Error("Invalid email format.");
+
+    // Role validation
+    const validRoles = ['ADMIN', 'MANAGER', 'STAFF'];
+    if (!validRoles.includes(role)) {
+      console.warn(`Invalid role ${role} requested, defaulting to STAFF.`);
+      role = 'STAFF';
+    }
+
+    // Basic sanitization
+    const sanitizedName = (name || email.split('@')[0] || 'User').replace(/[<>]/g, '').trim();
+
+    const avatar = sanitizedName
       .split(/[\s.@]/)
       .filter(Boolean)
       .map(n => n[0])
@@ -147,9 +171,9 @@ export const StorageService = {
 
     const member: TeamMember = {
       id: uid,
-      name: name || email.split('@')[0] || 'User',
+      name: sanitizedName,
       email: email.toLowerCase().trim(),
-      role: (role || 'STAFF') as any,
+      role: role as any,
       jobTitle: role === 'ADMIN' ? "System Administrator" : "IT Professional",
       avatar: avatar,
       weeklyCommitment: '',
@@ -166,15 +190,7 @@ export const StorageService = {
     }
   },
 
-  setupFirstAdmin: async (uid: string, name: string, email: string): Promise<TeamMember> => {
-    console.log("🚀 Manual System Initialization Started...");
-    const member = await StorageService.linkAndProvision(uid, name, email, 'ADMIN');
-    await StorageService.checkAndSeedWIGConfig();
-    await StorageService.checkAndSeedTemplates(COMMITMENT_TEMPLATES);
-    await StorageService.checkAndSeedBranding(DEFAULT_BRANDING);
-    console.log("✅ System Initialized Successfully.");
-    return member;
-  },
+
 
   addCommitment: async (
     memberId: string,

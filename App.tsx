@@ -43,26 +43,15 @@ const App: React.FC = () => {
 
   // Check for redirect result on mount
   useEffect(() => {
-    console.log("App mounted. Checking for Auth Redirect result...");
-    getRedirectResult(auth).then((result) => {
-      if (result) {
-        console.log("Redirect success! User:", result.user.email);
-      } else {
-        console.log("No redirect result found in URL.");
-      }
-    }).catch((e) => {
-      console.error("Redirect result error:", e);
+    getRedirectResult(auth).catch((e) => {
+      console.error("Auth Redirect Error:", e.message);
       setAccessError(`Auth Redirect Failed: ${e.message}`);
     });
   }, []);
 
   useEffect(() => {
-    console.log("Setting up onAuthStateChanged listener...");
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log("Auth State Changed. User:", firebaseUser?.email, "UID:", firebaseUser?.uid);
-
       if (!firebaseUser) {
-        console.log("No user found in session.");
         setCurrentUser(null);
         setIsAuthorized(false);
         setAuthLoading(false);
@@ -72,20 +61,14 @@ const App: React.FC = () => {
 
       try {
         const email = firebaseUser.email?.toLowerCase();
-        console.log("Handshaking for:", email);
         if (!email) throw new Error("SSO Identity missing email field.");
 
-        console.log("Fetching member record for UID:", firebaseUser.uid);
         let sessionMember = await StorageService.getMemberById(firebaseUser.uid);
 
-        if (sessionMember) {
-          console.log("Member found by UID:", sessionMember.name);
-        } else {
-          console.log("No member found by UID. Checking by email:", email);
+        if (!sessionMember) {
           const bestEmailRecord = await StorageService.getMemberByEmail(email);
 
           if (bestEmailRecord) {
-            console.log("Found existing record by email. Linking UID...");
             sessionMember = await StorageService.linkAndProvision(
               firebaseUser.uid,
               bestEmailRecord.name || firebaseUser.displayName || email.split('@')[0],
@@ -96,39 +79,26 @@ const App: React.FC = () => {
         }
 
         if (!sessionMember) {
-          console.log("New User: Checking for Admin existence to allow bootstrap...");
-          try {
-            const adminExists = await StorageService.isAdminExists();
-            console.log("Admin exists in DB:", adminExists);
-            if (!adminExists) {
-              console.log("Bootstrap: No Admin found. Provisioning this user as ADMIN.");
-              sessionMember = await StorageService.linkAndProvision(
-                firebaseUser.uid,
-                firebaseUser.displayName || email.split('@')[0],
-                email,
-                'ADMIN'
-              );
-            }
-          } catch (error: any) {
-            console.error("Bootstrap check failed:", error.message);
-          }
+          sessionMember = await StorageService.linkAndProvision(
+            firebaseUser.uid,
+            firebaseUser.displayName || email.split('@')[0],
+            email,
+            'STAFF'
+          );
         }
 
         if (sessionMember) {
-          console.log("Authorization Successful for:", sessionMember.name);
           setCurrentUser(sessionMember);
           setIsAuthorized(true);
           await StorageService.logLogin(firebaseUser.uid, sessionMember.name);
           if (view === AppView.LOGIN) {
-            console.log("Transitioning to DASHBOARD");
             setView(AppView.DASHBOARD);
           }
         } else {
-          console.log("Authorization Denied for:", email);
           setAccessError(`Access Denied: ${email} is not authorized on this roster.`);
         }
       } catch (e: any) {
-        console.error("Critical Auth Error:", e);
+        console.error("Auth System Error:", e.message);
         setAccessError(`Handshake Failed: ${e.message}`);
       } finally {
         setAuthLoading(false);

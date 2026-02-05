@@ -15,22 +15,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, accessError }) => {
 
   const displayError = accessError || error;
 
-  const handleSetup = async () => {
-    setIsInitializing(true);
-    try {
-      const { StorageService } = await import('../services/storage');
-      const { auth } = await import('../services/firebase');
-      const user = auth.currentUser;
-      if (!user || !user.email) throw new Error("Please sign in first.");
 
-      await StorageService.setupFirstAdmin(user.uid, user.displayName || user.email.split('@')[0], user.email);
-      window.location.reload();
-    } catch (e: any) {
-      setError(`Setup failed: ${e.message}`);
-    } finally {
-      setIsInitializing(false);
-    }
-  };
 
   const handleLogin = async () => {
     setLoading(true);
@@ -39,8 +24,15 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, accessError }) => {
     try {
       const { signInWithPopup } = await import('../services/firebase');
       const provider = new OAuthProvider('microsoft.com');
+
+      // Load tenant ID from environment variable
+      const tenantId = import.meta.env.VITE_AZURE_TENANT_ID || '';
+      if (!tenantId) {
+        console.warn('⚠️ Azure tenant ID not configured. Check VITE_AZURE_TENANT_ID in .env.local');
+      }
+
       provider.setCustomParameters({
-        tenant: '1e86a4bd-7841-4cbe-8f6f-ea7a050fc502',
+        tenant: tenantId,
         prompt: 'select_account'
       });
 
@@ -49,10 +41,9 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, accessError }) => {
       provider.addScope('email');
 
       const result = await signInWithPopup(auth, provider);
-      console.log("Popup success! User:", result.user.email);
-      // App.tsx onAuthStateChanged will handle the transition
+      // Popup success!
     } catch (e: any) {
-      console.error("Auth Exception:", e);
+      console.error("Auth Exception:", e.message);
       let msg = e.message || "An unexpected error occurred.";
       if (e.code === 'auth/popup-closed-by-user') msg = "Sign-in cancelled.";
       if (e.code === 'auth/operation-not-supported-in-this-environment') msg = "Microsoft SSO is not supported in this browser.";
@@ -96,24 +87,10 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, accessError }) => {
                 Try different account
               </button>
 
-              <button
-                onClick={handleSetup}
-                disabled={isInitializing}
-                className="w-full py-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50 shadow-md"
-              >
-                {isInitializing ? "Initializing..." : "Primary Admin Setup (New System Only)"}
-              </button>
+
             </div>
           )}
         </div>
-      </div>
-      <div className="fixed bottom-4 left-4 flex flex-col gap-1 opacity-40 hover:opacity-100 transition-opacity">
-        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Auth Debug Mode</p>
-        <div className="flex items-center gap-2">
-          <div className={`h-1.5 w-1.5 rounded-full ${auth.currentUser ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-          <p className="text-[8px] font-bold text-slate-500 uppercase">{auth.currentUser ? `Logged in: ${auth.currentUser.email}` : 'No Firebase Session detected'}</p>
-        </div>
-        {accessError && <p className="text-[8px] font-bold text-brand-red uppercase">Roster Error: {accessError}</p>}
       </div>
     </div>
   );
