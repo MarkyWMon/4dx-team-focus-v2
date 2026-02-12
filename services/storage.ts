@@ -239,10 +239,36 @@ export const StorageService = {
       // Update Commitment Status
       await setDoc(ref, { status: nextStatus }, { merge: true });
 
-      // Update User Score
-      const points = GamificationService.calculatePointsForAction(prevStatus, nextStatus);
-      if (points !== 0) {
-        await StorageService.updateUserScore(data.memberId, points);
+      // Scoring: Calculate points based on whether this is the first completion of the week
+      if ((prevStatus !== 'completed' && nextStatus === 'completed') || (prevStatus === 'completed' && nextStatus !== 'completed')) {
+        // Query to check if user has ANY other completed commitments this week
+        // Note: This is a simplified check. In a production environment with high concurrency, 
+        // we might want to store 'commitmentsCompletedThisWeek' on the user object.
+        const commitmentsRef = collection(db, "commitments");
+        const q = query(
+          commitmentsRef,
+          where("memberId", "==", data.memberId),
+          where("weekId", "==", data.weekId),
+          where("status", "==", "completed")
+        );
+        const querySnapshot = await getDocs(q);
+        const completedCount = querySnapshot.size;
+
+        // If nextStatus is completed, and count is 1 (the one we just updated), then it's the first.
+        // If nextStatus is NOT completed, and count was 0 (before this update it was 1), then it WAS the first.
+        // Simplified Logic: 
+        // If we just completed it, did we have 0 before? (Now we have 1) -> First
+        // If we just un-completed it, do we now have 0? -> Was First (Reversal)
+
+        // However, since we already awaited the setDoc update above:
+        // If nextStatus === 'completed' and completedCount === 1, it is the first.
+        const isFirst = (nextStatus === 'completed' && completedCount === 1) ||
+          (nextStatus !== 'completed' && completedCount === 0);
+
+        const points = GamificationService.calculatePointsForAction(prevStatus, nextStatus, isFirst);
+        if (points !== 0) {
+          await StorageService.updateUserScore(data.memberId, points);
+        }
       }
     }
   },
@@ -574,4 +600,30 @@ export const StorageService = {
       (error) => console.error("Survey Listener Error:", error)
     );
   },
+
+  // --- Team Insights (AI Summary) ---
+  saveWeeklySummary: async (weekId: string, summary: string): Promise<void> => {
+    try {
+      await setDoc(doc(db, "insights", `summary-${weekId}`), {
+        weekId,
+        summary,
+        generatedAt: Date.now()
+      });
+    } catch (e) {
+      console.error("Error saving summary:", e);
+    }
+  },
+
+  getWeeklySummary: async (weekId: string): Promise<string | null> => {
+    try {
+      const snap = await getDoc(doc(db, "insights", `summary-${weekId}`));
+      if (snap.exists()) {
+        return snap.data().summary;
+      }
+      return null;
+    } catch (e) {
+      console.error("Error fetching summary:", e);
+      return null;
+    }
+  }
 };

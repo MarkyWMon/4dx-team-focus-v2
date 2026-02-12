@@ -16,6 +16,7 @@ import SurveyUpload from './components/SurveyUpload';
 import SurveyAnalytics from './components/SurveyAnalytics';
 import ProfileDropdown from './components/ProfileDropdown';
 import AchievementToast from './components/AchievementToast';
+import ManagerDashboard from './components/ManagerDashboard';
 import { COMMITMENT_TEMPLATES } from './data/commitmentTemplates';
 
 const App: React.FC = () => {

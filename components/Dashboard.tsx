@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { StorageService } from '../services/storage';
 import { TeamMember, AppView, WIGConfig, WIG_SETTINGS, Commitment, SurveyResult, Ticket } from '../types';
+import { WHDService } from '../services/whd';
+import { AIService } from '../services/ai';
+import { GamificationService } from '../services/gamification';
 import { getPreviousWeekId, getWeekId } from '../utils';
 import UserStats from './UserStats';
 import CorrelationChart from './CorrelationChart';
@@ -64,8 +67,74 @@ const Dashboard: React.FC<DashboardProps> = ({
     await StorageService.updateMemberMetrics(id, updates);
   };
 
+  // AI Weekly Summary State
+  const [weeklySummary, setWeeklySummary] = useState<string | null>(null);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+  // Load summary on mount or week change
+  React.useEffect(() => {
+    const loadSummary = async () => {
+      const saved = await StorageService.getWeeklySummary(currentWeekId);
+      if (saved) setWeeklySummary(saved);
+      else setWeeklySummary(null);
+    };
+    loadSummary();
+  }, [currentWeekId]);
+
+  const handleGenerateSummary = async () => {
+    setIsGeneratingSummary(true);
+    const summary = await AIService.generateWeeklySummary(currentWeekCommitments, currentWeekId);
+    if (summary) {
+      setWeeklySummary(summary);
+      await StorageService.saveWeeklySummary(currentWeekId, summary);
+    }
+    setIsGeneratingSummary(false);
+  };
+
   return (
     <div className="space-y-10 animate-fade-in">
+
+      {/* SECTION Zero: AI TEAM PULSE (Summary) */}
+      {(weeklySummary || isManager) && (
+        <div className="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-6 shadow-xl relative overflow-hidden group">
+          {/* Background decoration */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-indigo-300">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wide">Weekly Team Pulse</h3>
+                  <p className="text-[10px] text-indigo-200 font-medium">AI-Generated Analysis</p>
+                </div>
+              </div>
+              {isManager && (
+                <button
+                  onClick={handleGenerateSummary}
+                  disabled={isGeneratingSummary}
+                  className="text-[10px] font-bold uppercase tracking-wider text-white/50 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                >
+                  {isGeneratingSummary ? 'Analyzing...' : (weeklySummary ? 'Regenerate' : 'Generate Analysis')}
+                </button>
+              )}
+            </div>
+
+            {weeklySummary ? (
+              <p className="text-indigo-50 text-sm leading-relaxed font-medium animate-fade-in">
+                {weeklySummary}
+              </p>
+            ) : (
+              <div className="text-white/40 text-xs italic">
+                No summary generated for this week yet.
+                {isManager ? ' Click generate to analyze team performance.' : ' Check back later!'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Missing Survey Data Reminder (Managers Only) */}
       {isManager && !hasSurveyDataForWeek && (

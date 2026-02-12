@@ -285,4 +285,48 @@ export const AIService = {
       return [];
     }
   }
+},
+
+  /**
+   * Generates a weekly summary of team achievements.
+   */
+  generateWeeklySummary: async (commitments: any[], weekId: string): Promise<string> => {
+    try {
+      if (!commitments || commitments.length === 0) return "No commitments completed this week yet. detailed summary unavailable.";
+
+      const completed = commitments.filter(c => c.status === 'completed');
+      if (completed.length === 0) return "No commitments completed this week yet. Let's get moving!";
+
+      const prompt = `
+        You are an enthusiastic Team Lead summarizing the week's achievements for an IT Support Team.
+        
+        WEEK ID: ${weekId}
+        
+        COMPLETED COMMITMENTS:
+        ${completed.map(c => `- ${c.description} (by ${c.userName || 'Team Member'})`).join('\n')}
+
+        TASK:
+        Write a short, punchy, and motivational summary (max 3-4 sentences) of what the team accomplished this week.
+        - Highlight specific wins (e.g. "We fixed the wifi", "We updated 5 guides").
+        - Mention specific people if they did something notable, but keep it balanced.
+        - Tone: Professional but high energy. "Did you know..." style is good.
+        - British English.
+        - No markdown formatting, just plain text.
+      `;
+
+      console.log("🤖 AI: Generating Weekly Summary...");
+      const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
+      const ai = new GoogleGenAI({ apiKey });
+      const result = await ai.models.generateContent({
+        model: 'models/gemini-2.0-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+
+      const text = result.response?.text?.() || "Great work team!";
+      return text.trim();
+    } catch (e) {
+      console.error("AI Summary Gen failed:", e);
+      return "Unable to generate summary at this time.";
+    }
+  }
 };
