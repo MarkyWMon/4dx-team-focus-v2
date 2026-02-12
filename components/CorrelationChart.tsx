@@ -46,17 +46,17 @@ const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> 
     const maxWins = Math.max(...chartData.map(d => d.wins)) * 1.2;
 
     return (
-        <div className={`bg-white rounded-[2rem] shadow-sm border border-slate-100 ${compact ? 'p-0 border-0 shadow-none bg-transparent' : 'p-6'}`}>
+        <div className={`bg-white rounded-2xl shadow-soft border border-slate-100/60 ${compact ? 'p-0 border-0 shadow-none bg-transparent' : 'p-6'}`}>
             {!compact && (
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <div>
                         <h3 className="text-lg font-black text-brand-navy uppercase tracking-tighter">Impact Correlation</h3>
                         <div className="flex items-center gap-3 mt-1">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Lead Measure vs Lag Result</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Lead Measure vs Lag Result</p>
                             <span className="h-1 w-1 rounded-full bg-slate-200"></span>
                             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${isWinning ? 'bg-brand-green/10 text-brand-green' : 'bg-brand-red/10 text-brand-red'} transition-colors`}>
                                 <span className={`h-1.5 w-1.5 rounded-full ${isWinning ? 'bg-brand-green' : 'bg-brand-red'} animate-pulse`}></span>
-                                <span className="text-[9px] font-black uppercase tracking-widest">
+                                <span className="text-[9px] font-bold uppercase tracking-wide">
                                     {isWinning ? 'On Track' : 'Off Track'}
                                 </span>
                             </div>
@@ -125,7 +125,7 @@ const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> 
             </div>
 
             {!compact && (
-                <div className="mt-6 p-4 bg-slate-50 rounded-xl flex items-start gap-3">
+                <div className="mt-6 p-4 bg-slate-50/50 rounded-xl flex items-start gap-3 border border-slate-100/50">
                     <div className="p-2 bg-brand-green/10 rounded-lg text-brand-green">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
                     </div>

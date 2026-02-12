@@ -294,33 +294,33 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
-      <nav className="bg-white border-b-2 border-brand-red sticky top-0 z-30 px-4 shadow-sm">
-        <div className="max-w-7xl mx-auto h-20 flex justify-between items-center">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30 px-4 shadow-sm">
+        <div className="max-w-7xl mx-auto h-16 flex justify-between items-center">
           <div className="flex items-center gap-10">
-            <div className="cursor-pointer group flex items-center gap-4" onClick={() => setView(AppView.DASHBOARD)}>
+            <div className="cursor-pointer group flex items-center gap-3" onClick={() => setView(AppView.DASHBOARD)}>
               {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt="Logo" className="h-12 w-auto object-contain transition-transform group-hover:scale-105" />
+                <img src={branding.logoUrl} alt="Logo" className="h-8 w-auto object-contain transition-transform group-hover:scale-105" />
               ) : (
-                <div className="bg-brand-red h-10 w-10 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg group-hover:bg-brand-navy transition-colors">B</div>
+                <div className="bg-brand-red h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-soft group-hover:bg-brand-navy transition-colors">B</div>
               )}
               <div className="flex flex-col">
-                <h1 className="text-xl font-black text-slate-900 tracking-tighter uppercase leading-none italic group-hover:text-brand-red transition-colors">BHASVIC</h1>
-                <p className="text-[8px] font-black text-brand-red uppercase tracking-[0.2em] mt-1.5 font-display">4DX Strategy Platform</p>
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight uppercase leading-none italic group-hover:text-brand-red transition-colors">BHASVIC</h1>
+                <p className="text-[10px] font-medium text-brand-red uppercase tracking-wider mt-0.5 font-display">Strategy Platform</p>
               </div>
             </div>
-            <div className="hidden md:flex gap-8">
+            <div className="hidden md:flex gap-6">
               {[
-                { id: AppView.DASHBOARD, label: 'WIG Scoreboard' },
-                { id: AppView.MY_COMMITMENTS, label: 'My Commitments' },
+                { id: AppView.DASHBOARD, label: 'Scoreboard' },
+                { id: AppView.MY_COMMITMENTS, label: 'Commitments' },
                 { id: AppView.WIG_SESSION, label: 'WIG Session' },
-                { id: AppView.HISTORY, label: 'Performance Audit' },
-                { id: AppView.SURVEYS, label: 'Satisfaction Analytics' },
+                { id: AppView.HISTORY, label: 'Audit' },
+                { id: AppView.SURVEYS, label: 'Analytics' },
                 ...(isManagement ? [{ id: AppView.TEAM_MANAGEMENT, label: 'Team Portal' }] : [])
               ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setView(tab.id as AppView)}
-                  className={`text-[10px] font-black uppercase tracking-widest pb-1.5 border-b-2 transition-all font-display ${view === tab.id ? 'border-brand-red text-slate-900' : 'border-transparent text-slate-300 hover:text-slate-500'}`}
+                  className={`text-xs font-semibold pb-1 transition-all ${view === tab.id ? 'text-brand-red border-b-2 border-brand-red' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   {tab.label}
                 </button>
@@ -349,13 +349,14 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl w-full mx-auto p-4 py-10 flex-grow">
+      <main className="max-w-7xl w-full mx-auto p-6 py-8 flex-grow">
         {view === AppView.DASHBOARD && currentUser && (
           <Dashboard
             currentUser={currentUser}
             members={members}
             wigConfig={wigConfig}
             commitments={commitments}
+            tickets={tickets}
             surveys={surveys}
             onNavigate={setView}
           />
@@ -421,10 +422,10 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <footer className="py-12 text-center border-t border-slate-100 bg-white">
+      <footer className="py-8 text-center border-t border-slate-100 bg-white">
         <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest opacity-60">BHASVIC IT Support Strategy Framework &copy; {new Date().getFullYear()}</p>
       </footer>
-    </div>
+    </div >
   );
 };
 

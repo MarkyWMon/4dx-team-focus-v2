@@ -12,44 +12,44 @@ const UserStats: React.FC<UserStatsProps> = ({ member }) => {
     const achievements = member.achievements || [];
 
     return (
-        <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 animate-fade-in">
-            <div className="flex items-center justify-between mb-8">
+        <div className="bg-white rounded-2xl p-6 shadow-soft border border-slate-100/60 animate-fade-in group">
+            <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Your Focus Profile</h3>
-                    <p className="text-xl font-display font-black text-slate-900">{member.name}</p>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Focus Profile</h3>
+                    <p className="text-lg font-bold text-slate-900 leading-none">{member.name}</p>
                 </div>
-                <div className="h-12 w-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
-                    <Trophy className="h-6 w-6 text-brand-orange" />
+                <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 group-hover:border-brand-navy/20 transition-colors">
+                    <Trophy className="h-5 w-5 text-brand-orange" />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Flame className={`h-4 w-4 ${currentStreak > 0 ? 'text-orange-500 fill-orange-500' : 'text-slate-300'}`} />
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Streak</span>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100/60 hover:bg-white hover:shadow-sm transition-all group/stat">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Flame className={`h-4 w-4 ${currentStreak > 0 ? 'text-orange-500 fill-orange-500' : 'text-slate-300'} transition-transform group-hover/stat:scale-110`} />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Streak</span>
                     </div>
-                    <p className="text-2xl font-black text-slate-900 font-display">{currentStreak} <span className="text-[10px] text-slate-400 uppercase">Weeks</span></p>
+                    <p className="text-xl font-bold text-slate-900 font-display">{currentStreak} <span className="text-[10px] text-slate-400 uppercase font-medium">Weeks</span></p>
                 </div>
 
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                    <div className="flex items-center gap-2 mb-2">
-                        <Target className="h-4 w-4 text-brand-navy" />
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Score</span>
+                <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100/60 hover:bg-white hover:shadow-sm transition-all group/stat">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Target className="h-4 w-4 text-brand-navy transition-transform group-hover/stat:scale-110" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Score</span>
                     </div>
-                    <p className="text-2xl font-black text-slate-900 font-display">{score.toLocaleString()} <span className="text-[10px] text-slate-400 uppercase">Pts</span></p>
+                    <p className="text-xl font-bold text-slate-900 font-display">{score.toLocaleString()} <span className="text-[10px] text-slate-400 uppercase font-medium">Pts</span></p>
                 </div>
             </div>
 
             <div>
-                <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Achievements</span>
-                    <span className="text-[10px] font-bold text-slate-400">{achievements.length} Unlocked</span>
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Achievements</span>
+                    <span className="text-[10px] font-semibold text-slate-400">{achievements.length} Unlocked</span>
                 </div>
 
                 {achievements.length === 0 ? (
-                    <div className="py-4 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Complete commitments to earn badges</p>
+                    <div className="py-4 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Earn badges by completing goals</p>
                     </div>
                 ) : (
                     <div className="flex flex-wrap gap-2">
