@@ -1,6 +1,7 @@
 
 import { TeamMember, Commitment, LoginLog, Ticket, ChangeRequest, CategoryInsight, LeadMeasureLog, CommitmentStatus, WIGSession, AISuggestion, CommitmentTemplate, WIGConfig, BrandingConfig, DEFAULT_BRANDING } from '../types';
 import { db, auth } from './firebase';
+import { GamificationService } from './gamification';
 import {
   doc,
   setDoc,
@@ -23,6 +24,7 @@ const STORAGE_KEYS = {
   WIG_CONFIG: '4dx_wig_config',
   TEMPLATES: '4dx_templates',
   BRANDING: '4dx_branding',
+  SURVEYS: '4dx_surveys',
 };
 
 const saveLocal = <T>(key: string, data: T): void => {
@@ -178,6 +180,11 @@ export const StorageService = {
       avatar: avatar,
       weeklyCommitment: '',
       leadMeasureProgress: {},
+      // Gamification v2 Initial Defaults
+      score: 0,
+      streak: 0,
+      longestStreak: 0,
+      achievements: [],
     };
 
     try {
@@ -211,6 +218,10 @@ export const StorageService = {
     await setDoc(doc(db, "commitments", id), newCommitment);
   },
 
+  updateMember: async (id: string, updates: Partial<TeamMember>): Promise<void> => {
+    await setDoc(doc(db, "members", id), updates, { merge: true });
+  },
+
   updateCommitment: async (id: string, updates: Partial<Commitment>): Promise<void> => {
     await setDoc(doc(db, "commitments", id), updates, { merge: true });
   },
@@ -220,10 +231,49 @@ export const StorageService = {
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data() as Commitment;
+      const prevStatus = data.status;
       let nextStatus: CommitmentStatus = 'completed';
       if (data.status === 'completed') nextStatus = 'partial';
       else if (data.status === 'partial') nextStatus = 'incomplete';
+
+      // Update Commitment Status
       await setDoc(ref, { status: nextStatus }, { merge: true });
+
+      // Update User Score
+      const points = GamificationService.calculatePointsForAction(prevStatus, nextStatus);
+      if (points !== 0) {
+        await StorageService.updateUserScore(data.memberId, points);
+      }
+    }
+  },
+
+  updateUserScore: async (uid: string, points: number): Promise<void> => {
+    try {
+      const ref = doc(db, "members", uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const member = snap.data() as TeamMember;
+        const newScore = (member.score || 0) + points;
+
+        // Check achievements
+        const achievements = GamificationService.checkAchievements({ ...member, score: newScore });
+        const newAchievements = [...(member.achievements || [])];
+        let changed = false;
+
+        achievements.forEach(a => {
+          if (!newAchievements.find(ea => ea.id === a.id)) {
+            newAchievements.push(a);
+            changed = true;
+          }
+        });
+
+        const updates: any = { score: newScore };
+        if (changed) updates.achievements = newAchievements;
+
+        await setDoc(ref, updates, { merge: true });
+      }
+    } catch (e) {
+      console.error("Failed to update user score:", e);
     }
   },
 
@@ -484,5 +534,44 @@ export const StorageService = {
     } catch (e) {
       console.error("Error seeding branding:", e);
     }
+  },
+
+  // --- Survey Management ---
+
+  saveSurveys: async (surveys: SurveyResult[]): Promise<void> => {
+    // Process in chunks of 500 (Firestore batch limit)
+    const chunkSize = 500;
+    for (let i = 0; i < surveys.length; i += chunkSize) {
+      const chunk = surveys.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+
+      chunk.forEach(survey => {
+        const ref = doc(db, "surveys", survey.id); // ID is Ticket No
+        batch.set(ref, survey);
+      });
+
+      await batch.commit();
+    }
+  },
+
+  getSurveys: async (): Promise<SurveyResult[]> => {
+    try {
+      const snapshot = await getDocs(collection(db, "surveys"));
+      return snapshot.docs.map(d => d.data() as SurveyResult);
+    } catch (e) {
+      console.error("Error getting surveys:", e);
+      return [];
+    }
+  },
+
+  subscribeToSurveys: (callback: (surveys: SurveyResult[]) => void) => {
+    return onSnapshot(collection(db, "surveys"),
+      (snapshot) => {
+        const surveys = snapshot.docs.map(d => d.data() as SurveyResult);
+        saveLocal(STORAGE_KEYS.SURVEYS, surveys);
+        callback(surveys);
+      },
+      (error) => console.error("Survey Listener Error:", error)
+    );
   },
 };

@@ -2,6 +2,14 @@
 export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF';
 export type CommitmentStatus = 'completed' | 'partial' | 'incomplete';
 
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlockedAt: number;
+}
+
 export interface TeamMember {
   id: string;
   name: string;
@@ -13,6 +21,14 @@ export interface TeamMember {
   weeklyCommitment: string;
   // Dynamic metrics: map of leadMeasureId -> currentCount
   leadMeasureProgress: Record<string, number>;
+
+  // Gamification v2
+  score: number;
+  streak: number;
+  longestStreak: number;
+  achievements: Achievement[];
+  lastActiveWeekId?: string;
+
   // Legacy fields (optional migration)
   walksCompleted?: number;
   valueActionsCompleted?: number;
@@ -85,15 +101,18 @@ export interface Ticket {
 }
 
 export interface SurveyResult {
-  id: string;
-  date: number;
-  weekId: string;
-  tech: string;
+  id: string; // Ticket No
+  ticketNo: string;
+  date: number; // Timestamp
   client: string;
-  q1: number;
-  q2: number;
-  q3: number;
+  location: string;
+  tech: string;
+  problemType: string;
+  q1: number; // Resolution
+  q2: number; // Professionalism
+  q3: number; // Speed
   average: number;
+  weekId: string; // Derived from date for grouping
 }
 
 export interface CategoryInsight {

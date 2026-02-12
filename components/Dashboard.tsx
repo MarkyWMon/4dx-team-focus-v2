@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { StorageService } from '../services/storage';
-import { TeamMember, AppView, WIGConfig, WIG_SETTINGS, Commitment } from '../types';
+import { TeamMember, AppView, WIGConfig, WIG_SETTINGS, Commitment, SurveyResult } from '../types';
 import { getPreviousWeekId } from '../utils';
+import UserStats from './UserStats';
 
 interface DashboardProps {
   currentUser: TeamMember;
   members: TeamMember[];
   wigConfig: WIGConfig | null;
   commitments?: Commitment[];
+  surveys?: SurveyResult[];
   onNavigate: (view: AppView) => void;
 }
 
@@ -16,10 +18,19 @@ const Dashboard: React.FC<DashboardProps> = ({
   members,
   wigConfig,
   commitments = [],
+  surveys = [],
   onNavigate,
 }) => {
-  const [editingScore, setEditingScore] = useState(false);
-  const [tempScore, setTempScore] = useState(wigConfig?.currentValue || 70);
+  // Calculate WIG Score from Survey Data
+  const currentScore = useMemo(() => {
+    if (!surveys || surveys.length === 0) return wigConfig?.currentValue || 70;
+
+    // Calculate average of all surveys (rolling average logic can be added here if needed)
+    // For now, use overall average
+    const total = surveys.reduce((sum, s) => sum + s.average, 0);
+    const avg = total / surveys.length; // Out of 10
+    return Math.round(avg * 10); // Convert to Percentage (0-100)
+  }, [surveys, wigConfig]);
 
   const activeMembers = members.filter(m => m.id); // Valid members have an ID
   const numActive = activeMembers.length;
@@ -57,52 +68,46 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="space-y-10 animate-fade-in">
-      {/* SECTION A: THE WIG (Lag Measure) */}
-      <section className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h2 className="text-xl font-bold text-brand-navy tracking-tight uppercase">
-              WIG: {wigConfig?.title || "Strategy Goal"} ({(wigConfig?.currentScore || 0.7) * 100}% to {(wigConfig?.targetScore || 0.8) * 100}%)
-            </h2>
-            <p className="text-slate-600 text-xs font-semibold uppercase tracking-widest mt-1">Lag Measure: {wigConfig?.description || "Monthly Performance Score"}</p>
-          </div>
-          <div className="text-right">
-            {editingScore ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={tempScore}
-                  onChange={(e) => setTempScore(Number(e.target.value))}
-                  className="w-20 p-2 border-2 border-brand-red rounded-xl font-black text-center outline-none"
-                />
-                <button onClick={handleUpdateScore} className="bg-brand-red text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase">Save</button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* SECTION A: THE WIG (Lag Measure) */}
+        <section className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <h2 className="text-xl font-bold text-brand-navy tracking-tight uppercase">
+                WIG: {wigConfig?.title || "Strategy Goal"} ({(wigConfig?.currentScore || 0.7) * 100}% to {(wigConfig?.targetScore || 0.8) * 100}%)
+              </h2>
+              <p className="text-slate-600 text-xs font-semibold uppercase tracking-widest mt-1">Lag Measure: {wigConfig?.description || "Monthly Performance Score"}</p>
+            </div>
+            <div className="text-right">
+              {/* Automated Score from Surveys */}
+              <div className="flex flex-col items-end">
+                <span className="text-3xl font-black text-brand-navy tracking-tighter">{currentScore}%</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-full mt-1">Live Survey Data</span>
               </div>
-            ) : (
-              <button
-                onClick={() => { setTempScore(wigConfig?.currentValue || 70); setEditingScore(true); }}
-                className="text-slate-400 hover:text-brand-red transition-colors text-[10px] font-black uppercase tracking-widest border border-slate-200 px-4 py-2 rounded-xl"
-              >
-                Current: {wigConfig?.currentValue || 70}% (Edit)
-              </button>
-            )}
+            </div>
           </div>
-        </div>
 
-        <div className="relative h-12 bg-slate-100 rounded-full overflow-hidden border-4 border-white shadow-inner">
-          <div
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-brand-red to-brand-green transition-all duration-1000"
-            style={{ width: `${((wigConfig?.currentValue || 70) - 0) / 100 * 100}%` }}
-          ></div>
-          {/* Target marker */}
-          <div className="absolute top-0 h-full w-1 bg-white shadow-lg" style={{ left: `${wigConfig?.targetValue || 80}%` }}>
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-brand-navy text-white px-2 py-1 rounded text-[10px] font-black uppercase">Target: {wigConfig?.targetValue || 80}%</div>
+          <div className="relative h-12 bg-slate-100 rounded-full overflow-hidden border-4 border-white shadow-inner">
+            <div
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-brand-red to-brand-green transition-all duration-1000"
+              style={{ width: `${currentScore}%` }}
+            ></div>
+            {/* Target marker */}
+            <div className="absolute top-0 h-full w-1 bg-white shadow-lg" style={{ left: `${wigConfig?.targetValue || 80}%` }}>
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-brand-navy text-white px-2 py-1 rounded text-[10px] font-black uppercase">Target: {wigConfig?.targetValue || 80}%</div>
+            </div>
           </div>
-        </div>
-        <div className="flex justify-between mt-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-          <span>Current: {wigConfig?.currentValue || 70}%</span>
-          <span>Gap to Close: {Math.max(0, (wigConfig?.targetValue || 80) - (wigConfig?.currentValue || 70))}%</span>
-        </div>
-      </section>
+          <div className="flex justify-between mt-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+            <span>Current: {currentScore}%</span>
+            <span>Gap to Close: {Math.max(0, (wigConfig?.targetValue || 80) - currentScore)}%</span>
+          </div>
+        </section>
+
+        {/* SECTION A.5: USER STATS (Gamification v2) */}
+        <section>
+          <UserStats member={currentUser} />
+        </section>
+      </div>
 
       {/* SECTION B: THE SCOREBOARD (Lead Measures with Team Targets) */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -246,6 +251,8 @@ const Dashboard: React.FC<DashboardProps> = ({
             <thead>
               <tr className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 tracking-widest font-display">
                 <th className="px-8 py-4">Name</th>
+                <th className="px-8 py-4">Streak</th>
+                <th className="px-8 py-4">Score</th>
                 {leadMeasures.map(measure => (
                   <th key={measure.id} className="px-8 py-4">{measure.name}</th>
                 ))}
@@ -261,6 +268,17 @@ const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                       <span className="font-semibold text-slate-900 text-sm tracking-tight">{member.name || 'Unknown'}</span>
                     </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-1">
+                      <span className={`font-black ${member.streak > 0 ? 'text-orange-500' : 'text-slate-300'}`}>
+                        {member.streak || 0}
+                      </span>
+                      {member.streak > 0 && <span className="text-xs">🔥</span>}
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <span className="font-black text-slate-700">{(member.score || 0).toLocaleString()}</span>
                   </td>
                   {leadMeasures.map((measure, measureIndex) => {
                     // Count this member's completed commitments

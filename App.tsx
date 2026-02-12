@@ -3,6 +3,7 @@ import { AppView, TeamMember, Commitment, LeadMeasure, Ticket, WIGConfig, Commit
 import { StorageService } from './services/storage';
 import { WHDService } from './services/whd';
 import { AIService } from './services/ai';
+import { GamificationService } from './services/gamification';
 import { getWeekId, getPreviousWeekId, getNextWeekId } from './utils';
 import { auth, onAuthStateChanged, signOut, getRedirectResult } from './services/firebase';
 import Dashboard from './components/Dashboard';
@@ -11,7 +12,10 @@ import TeamManagement from './components/TeamManagement';
 import CommitmentHistory from './components/CommitmentHistory';
 import Login from './components/Login';
 import WIGSessionView from './components/WIGSession';
+import SurveyUpload from './components/SurveyUpload';
+import SurveyAnalytics from './components/SurveyAnalytics';
 import ProfileDropdown from './components/ProfileDropdown';
+import AchievementToast from './components/AchievementToast';
 import { COMMITMENT_TEMPLATES } from './data/commitmentTemplates';
 
 const App: React.FC = () => {
@@ -21,10 +25,13 @@ const App: React.FC = () => {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [surveys, setSurveys] = useState<any[]>([]); // SurveyResult[]
   const [templates, setTemplates] = useState<CommitmentTemplate[]>([]);
   const [selectedWeekId, setSelectedWeekId] = useState<string>(getWeekId());
   const [wigConfig, setWIGConfig] = useState<WIGConfig | null>(null);
   const [branding, setBranding] = useState<BrandingConfig>(DEFAULT_BRANDING);
+  const [activeAchievement, setActiveAchievement] = useState<Achievement | null>(null);
+  const seenAchievements = useRef<Set<string>>(new Set());
 
   // Single, high-leverage Lead Measure focusing purely on Proactive Strategy
   const [leadMeasures] = useState<LeadMeasure[]>([
@@ -112,7 +119,18 @@ const App: React.FC = () => {
     const unsubMembers = StorageService.subscribeToMembers((updatedMembers) => {
       setMembers(updatedMembers);
       const me = updatedMembers.find(m => m.id === auth.currentUser?.uid);
-      if (me) setCurrentUser(me);
+      if (me) {
+        // Detect new achievements
+        if (me.achievements) {
+          me.achievements.forEach(a => {
+            if (!seenAchievements.current.has(a.id)) {
+              seenAchievements.current.add(a.id);
+              setActiveAchievement(a);
+            }
+          });
+        }
+        setCurrentUser(me);
+      }
     });
     const unsubCommitments = StorageService.subscribeToCommitments((updatedCommitments) => {
       setCommitments(updatedCommitments);
@@ -125,6 +143,9 @@ const App: React.FC = () => {
     });
     const unsubTemplates = StorageService.subscribeToTemplates((updatedTemplates) => {
       setTemplates(updatedTemplates);
+    });
+    const unsubSurveys = StorageService.subscribeToSurveys((updatedSurveys) => {
+      setSurveys(updatedSurveys);
     });
     const unsubBranding = StorageService.subscribeToBranding((config) => {
       if (config) setBranding(config);
@@ -144,9 +165,38 @@ const App: React.FC = () => {
       unsubWIG();
       unsubTickets();
       unsubTemplates();
+      unsubSurveys();
       unsubBranding();
     };
   }, [isAuthorized]);
+
+  // --- GAMIFICATION 2.0: Weekly Transition Check ---
+  useEffect(() => {
+    const checkTransition = async () => {
+      if (!currentUser || commitments.length === 0) return;
+
+      const currentActualWeek = getWeekId();
+      const lastWeekId = getPreviousWeekId(currentActualWeek);
+
+      // If we haven't processed last week yet, do it now
+      if (currentUser.lastActiveWeekId !== lastWeekId) {
+        const updates = await GamificationService.processWeeklyTransition(
+          currentUser,
+          lastWeekId,
+          currentActualWeek,
+          commitments
+        );
+
+        if (updates) {
+          await StorageService.updateMember(currentUser.id, updates);
+        }
+      }
+    };
+
+    if (isAuthorized && currentUser) {
+      checkTransition();
+    }
+  }, [isAuthorized, currentUser?.id, commitments.length]);
 
   // Automatic ticket sync & AI Pre-generation for managers/admins
   useEffect(() => {
@@ -264,6 +314,7 @@ const App: React.FC = () => {
                 { id: AppView.MY_COMMITMENTS, label: 'My Commitments' },
                 { id: AppView.WIG_SESSION, label: 'WIG Session' },
                 { id: AppView.HISTORY, label: 'Performance Audit' },
+                { id: AppView.SURVEYS, label: 'Satisfaction Analytics' },
                 ...(isManagement ? [{ id: AppView.TEAM_MANAGEMENT, label: 'Team Portal' }] : [])
               ].map(tab => (
                 <button
@@ -305,6 +356,7 @@ const App: React.FC = () => {
             members={members}
             wigConfig={wigConfig}
             commitments={commitments}
+            surveys={surveys}
             onNavigate={setView}
           />
         )}
@@ -336,6 +388,19 @@ const App: React.FC = () => {
           />
         )}
         {view === AppView.HISTORY && currentUser && <CommitmentHistory currentUser={currentUser} members={members} />}
+        {view === AppView.SURVEYS && currentUser && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Satisfaction Analytics</h2>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Helpdesk Survey Insights</p>
+              </div>
+            </div>
+            <SurveyUpload onUploadComplete={() => { }} />
+            <SurveyAnalytics surveys={surveys} />
+          </div>
+        )}
+
         {view === AppView.TEAM_MANAGEMENT && currentUser && isManagement && (
           <TeamManagement
             members={members}
