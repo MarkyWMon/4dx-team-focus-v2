@@ -284,8 +284,7 @@ export const AIService = {
       console.error("AI Template Gen failed:", e);
       return [];
     }
-  }
-},
+  },
 
   /**
    * Generates a weekly summary of team achievements.
@@ -322,8 +321,22 @@ export const AIService = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
       });
 
-      const text = result.response?.text?.() || "Great work team!";
-      return text.trim();
+      console.log("🤖 AI: Model response received.");
+
+      let text = '';
+      try {
+        // Robust extraction matching generateCommitmentSuggestions
+        text = result.response?.text?.() || (result as any).text || '';
+        if (!text && result.response?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          text = result.response.candidates[0].content.parts[0].text;
+        }
+      } catch (e) {
+        console.warn("AI: Standard text extraction failed in summary generation", e);
+      }
+
+      const finalSummary = text.trim() || "Great work team! (AI generation produced empty result)";
+      console.log("🤖 AI: Final Summary:", finalSummary);
+      return finalSummary;
     } catch (e) {
       console.error("AI Summary Gen failed:", e);
       return "Unable to generate summary at this time.";

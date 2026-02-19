@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [selectedWeekId, setSelectedWeekId] = useState<string>(getWeekId());
   const [wigConfig, setWIGConfig] = useState<WIGConfig | null>(null);
   const [branding, setBranding] = useState<BrandingConfig>(DEFAULT_BRANDING);
+  const [surveyStartDate, setSurveyStartDate] = useState<number | null>(null);
   const [activeAchievement, setActiveAchievement] = useState<Achievement | null>(null);
   const seenAchievements = useRef<Set<string>>(new Set());
 
@@ -48,6 +49,7 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Check for redirect result on mount
   useEffect(() => {
@@ -142,6 +144,7 @@ const App: React.FC = () => {
     const unsubTickets = StorageService.subscribeToTickets((updatedTickets) => {
       setTickets(updatedTickets);
     });
+
     const unsubTemplates = StorageService.subscribeToTemplates((updatedTemplates) => {
       setTemplates(updatedTemplates);
     });
@@ -150,6 +153,11 @@ const App: React.FC = () => {
     });
     const unsubBranding = StorageService.subscribeToBranding((config) => {
       if (config) setBranding(config);
+    });
+    const unsubSurveyConfig = StorageService.subscribeToSurveyConfig((config) => {
+      if (config) {
+        setSurveyStartDate(config.startDate);
+      }
     });
 
     // Seed templates, WIG config, and Branding (Once per session)
@@ -168,6 +176,7 @@ const App: React.FC = () => {
       unsubTemplates();
       unsubSurveys();
       unsubBranding();
+      unsubSurveyConfig();
     };
   }, [isAuthorized]);
 
@@ -239,7 +248,15 @@ const App: React.FC = () => {
         }
       })
       .catch((err) => {
-        console.warn('Ticket sync failed:', err.message);
+        console.warn('Ticket sync failed, falling back to local storage:', err.message);
+        // Fallback to local storage on error
+        const cachedTickets = StorageService.getTickets();
+        if (cachedTickets.length > 0) {
+          console.log(`✓ Loaded ${cachedTickets.length} tickets from local cache after sync failure`);
+          // We don't need to manually set state here because subscribeToTickets 
+          // will have already fired with the cached data (if we didn't wipe it).
+          // However, if sync failed, we should ensure the UI knows we have something.
+        }
       });
   }, [currentUser]);
 
@@ -346,8 +363,52 @@ const App: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 text-slate-600 hover:text-brand-navy transition-colors"
+            >
+              {isMobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden absolute top-16 left-0 w-full bg-white border-b border-slate-100 shadow-xl animate-fade-in z-40">
+            <div className="p-4 flex flex-col gap-2">
+              {[
+                { id: AppView.DASHBOARD, label: 'Scoreboard' },
+                { id: AppView.MY_COMMITMENTS, label: 'Commitments' },
+                { id: AppView.WIG_SESSION, label: 'WIG Session' },
+                { id: AppView.HISTORY, label: 'Audit' },
+                { id: AppView.SURVEYS, label: 'Analytics' },
+                ...(isManagement ? [{ id: AppView.TEAM_MANAGEMENT, label: 'Team Portal' }] : []),
+                ...(currentUser.role !== 'STAFF' ? [{ id: AppView.MANAGER_DASHBOARD, label: 'My Team' }] : [])
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setView(tab.id as AppView);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`p-4 text-left rounded-xl font-bold uppercase text-xs tracking-widest transition-all ${view === tab.id ? 'bg-brand-red text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+              <div className="mt-2 pt-4 border-t border-slate-100 flex items-center justify-between px-2">
+                <span className="text-xs font-bold text-slate-900">{currentUser?.name}</span>
+                <button onClick={handleLogout} className="text-xs font-bold text-brand-red uppercase">Logout</button>
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       <main className="max-w-7xl w-full mx-auto p-6 py-8 flex-grow">
@@ -359,6 +420,7 @@ const App: React.FC = () => {
             commitments={commitments}
             tickets={tickets}
             surveys={surveys}
+            surveyStartDate={surveyStartDate}
             onNavigate={setView}
           />
         )}
@@ -399,7 +461,11 @@ const App: React.FC = () => {
               </div>
             </div>
             <SurveyUpload onUploadComplete={() => { }} />
-            <SurveyAnalytics surveys={surveys} />
+            <SurveyAnalytics
+              surveys={surveys}
+              startDate={surveyStartDate}
+              onDateChange={(date) => StorageService.saveSurveyConfig({ startDate: date })}
+            />
           </div>
         )}
 

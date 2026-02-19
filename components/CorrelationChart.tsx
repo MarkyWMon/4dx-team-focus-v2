@@ -29,14 +29,14 @@ const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> 
             const weekTickets = tickets.filter(t => t.weekId === weekId).length;
             const weekWins = commitments.filter(c => c.weekId === weekId && c.status === 'completed').length;
 
-            // If no real data, mock it for visualization demonstration (REMOVE IN PRODUCTION)
-            const mockTickets = weekTickets || Math.floor(Math.random() * (45 - 30) + 30) - (i * 2);
-            const mockWins = weekWins || Math.floor(Math.random() * (22 - 10) + 10) + (i * 1.5);
+            // Production logic: Show real data (0 if none)
+
+            const hasData = tickets.length > 0 || commitments.length > 0;
 
             return {
                 week: weekId.split('-W')[1],
-                tickets: tickets.length > 0 ? weekTickets : mockTickets,
-                wins: tickets.length > 0 ? weekWins : mockWins
+                tickets: weekTickets, // Now heavily relies on real data
+                wins: weekWins
             };
         });
     }, [tickets, commitments, currentWeekId]);

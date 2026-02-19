@@ -15,6 +15,7 @@ interface DashboardProps {
   commitments?: Commitment[];
   tickets?: Ticket[];
   surveys?: SurveyResult[];
+  surveyStartDate?: number | null;
   onNavigate: (view: AppView) => void;
 }
 
@@ -25,18 +26,25 @@ const Dashboard: React.FC<DashboardProps> = ({
   commitments = [],
   tickets = [],
   surveys = [],
+  surveyStartDate,
   onNavigate,
 }) => {
   // Calculate WIG Score from Survey Data
   const currentScore = useMemo(() => {
     if (!surveys || surveys.length === 0) return wigConfig?.currentValue || 70;
 
-    // Calculate average of all surveys (rolling average logic can be added here if needed)
-    // For now, use overall average
-    const total = surveys.reduce((sum, s) => sum + s.average, 0);
-    const avg = total / surveys.length; // Out of 10
+    let filteredSurveys = surveys;
+    if (surveyStartDate) {
+      filteredSurveys = surveys.filter(s => s.date >= surveyStartDate);
+    }
+
+    if (filteredSurveys.length === 0) return wigConfig?.currentValue || 70;
+
+    // Calculate average of filtered surveys
+    const total = filteredSurveys.reduce((sum, s) => sum + s.average, 0);
+    const avg = total / filteredSurveys.length; // Out of 10
     return Math.round(avg * 10); // Convert to Percentage (0-100)
-  }, [surveys, wigConfig]);
+  }, [surveys, wigConfig, surveyStartDate]);
 
   const activeMembers = members.filter(m => m.id); // Valid members have an ID
   const numActive = activeMembers.length;
@@ -83,10 +91,14 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleGenerateSummary = async () => {
     setIsGeneratingSummary(true);
+    console.log("Generating summary for commitments:", currentWeekCommitments.length);
     const summary = await AIService.generateWeeklySummary(currentWeekCommitments, currentWeekId);
+    console.log("Received summary from AI:", summary);
+
     if (summary) {
       setWeeklySummary(summary);
       await StorageService.saveWeeklySummary(currentWeekId, summary);
+      console.log("Summary saved to storage");
     }
     setIsGeneratingSummary(false);
   };
@@ -178,7 +190,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <span className="text-4xl font-bold text-slate-900 tracking-tighter leading-none">{currentScore}<span className="text-lg text-slate-400 align-top">%</span></span>
                 <span className="text-[10px] font-semibold text-brand-navy uppercase tracking-wide mt-1 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse"></span>
-                  Live Data
+                  {surveyStartDate ? `From ${new Date(surveyStartDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'All Time'}
                 </span>
               </div>
             </div>

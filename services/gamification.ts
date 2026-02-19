@@ -46,7 +46,8 @@ export const GamificationService = {
      */
     checkAchievements: (user: TeamMember): Achievement[] => {
         const newAchievements: Achievement[] = [];
-        const existingIds = new Set(user.achievements.map(a => a.id));
+        const currentAchievements = user.achievements || [];
+        const existingIds = new Set(currentAchievements.map(a => a.id));
 
         // First Step
         if (!existingIds.has('first-step') && user.score >= SCORING.COMMITMENT_COMPLETE) {

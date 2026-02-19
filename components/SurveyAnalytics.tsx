@@ -1,22 +1,46 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { SurveyResult, TeamMember } from '../types';
-import { StorageService } from '../services/storage';
-import { getWeekId } from '../utils';
+import { SurveyResult } from '../types';
 
 interface SurveyAnalyticsProps {
     surveys: SurveyResult[];
+    startDate: number | null;
+    onDateChange: (date: number) => void;
 }
 
-const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys }) => {
-    const [timeframe, setTimeframe] = useState<'all' | 'month' | 'quarter'>('all');
+const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, onDateChange }) => {
+    // Local state for the date picker input (string format YYYY-MM-DD)
+    const [localDate, setLocalDate] = useState<string>(startDate ? new Date(startDate).toISOString().split('T')[0] : '');
+
+    // Sync local date when prop changes (external update)
+    useEffect(() => {
+        if (startDate) {
+            setLocalDate(new Date(startDate).toISOString().split('T')[0]);
+        } else {
+            setLocalDate('');
+        }
+    }, [startDate]);
+
+    const handleSaveDate = () => {
+        if (localDate) {
+            const timestamp = new Date(localDate).getTime();
+            onDateChange(timestamp);
+        } else {
+            // Handle clear
+            onDateChange(0);
+        }
+    };
+
 
     // --- Metrics Calculation ---
     const metrics = useMemo(() => {
         if (surveys.length === 0) return null;
 
-        // Filters (TODO: Implement actual date filtering if needed)
-        const filtered = surveys;
+        // Filter by Start Date
+        const startTimestamp = startDate || 0;
+        const filtered = surveys.filter(s => s.date >= startTimestamp);
         const count = filtered.length;
+
+        if (count === 0) return null;
 
         const avg = (filtered.reduce((sum, s) => sum + s.average, 0) / count).toFixed(1);
         const q1Avg = (filtered.reduce((sum, s) => sum + s.q1, 0) / count).toFixed(1);
@@ -26,13 +50,15 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys }) => {
         const percent = (Number(avg) * 10).toFixed(0);
 
         return { count, avg, percent, q1Avg, q2Avg, q3Avg };
-    }, [surveys]);
+    }, [surveys, startDate]);
 
     // --- Tech League Table ---
     const techPerformance = useMemo(() => {
         const techs: Record<string, { count: number; total: number; q1: number; q2: number; q3: number }> = {};
 
-        surveys.forEach(s => {
+        const startTimestamp = startDate || 0;
+
+        surveys.filter(s => s.date >= startTimestamp).forEach(s => {
             const name = s.tech || "Unknown";
             if (!techs[name]) techs[name] = { count: 0, total: 0, q1: 0, q2: 0, q3: 0 };
             techs[name].count++;
@@ -53,14 +79,15 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys }) => {
                 q3: (data.q3 / data.count).toFixed(1),
             }))
             .sort((a, b) => Number(b.avg) - Number(a.avg));
-    }, [surveys]);
+    }, [surveys, startDate]);
 
     // --- Weekly Trend ---
     const weeklyTrend = useMemo(() => {
         const weeks: Record<string, { total: number; count: number }> = {};
 
         // Sort surveys by date
-        const sorted = [...surveys].sort((a, b) => a.date - b.date);
+        const startTimestamp = startDate || 0;
+        const sorted = surveys.filter(s => s.date >= startTimestamp).sort((a, b) => a.date - b.date);
 
         sorted.forEach(s => {
             // Simple week grouping - assuming weekId is YYYY-MM-DD of Monday
@@ -77,18 +104,79 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys }) => {
             }))
             .sort((a, b) => a.weekId.localeCompare(b.weekId))
             .slice(-12); // Last 12 weeks
-    }, [surveys]);
+    }, [surveys, startDate]);
 
 
     if (!metrics) return (
         <div className="flex flex-col items-center justify-center p-10 bg-slate-50 text-slate-400 rounded-3xl border border-dashed border-slate-200">
-            <p className="font-black uppercase tracking-widest text-xs">No Data Available</p>
-            <p className="text-[10px] mt-2">Upload TSV files to see analytics</p>
+            <div className="flex justify-between items-center w-full mb-6">
+                <div></div>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Start Date:</label>
+                        <input
+                            type="date"
+                            value={localDate}
+                            onChange={(e) => setLocalDate(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/5 transition-all"
+                        />
+                    </div>
+                    <button
+                        onClick={handleSaveDate}
+                        className="bg-brand-navy text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg hover:bg-slate-800 transition-all shadow-md hover:shadow-lg"
+                    >
+                        Apply Filter
+                    </button>
+                    {startDate && (
+                        <button
+                            onClick={() => { setLocalDate(''); onDateChange(0); }}
+                            className="text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-brand-red transition-colors"
+                        >
+                            Reset
+                        </button>
+                    )}
+                </div>
+            </div>
+            <p className="font-black uppercase tracking-widest text-xs">No Data Available for this period</p>
+            <p className="text-[10px] mt-2">Try adjusting the date filter or upload TSV files</p>
         </div>
     );
 
     return (
         <div className="space-y-8 animate-fade-in">
+
+            <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-6">
+                <div>
+                    <h2 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Satisfaction Analytics</h2>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Helpdesk Survey Insights</p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Start Date:</label>
+                        <input
+                            type="date"
+                            value={localDate}
+                            onChange={(e) => setLocalDate(e.target.value)}
+                            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/5 transition-all"
+                        />
+                    </div>
+                    <button
+                        onClick={handleSaveDate}
+                        disabled={localDate === (startDate ? new Date(startDate).toISOString().split('T')[0] : '')}
+                        className="bg-brand-navy text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                    >
+                        Save Timeframe
+                    </button>
+                    {startDate && (
+                        <button
+                            onClick={() => { setLocalDate(''); onDateChange(0); }}
+                            className="text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-brand-red transition-colors"
+                        >
+                            Reset
+                        </button>
+                    )}
+                </div>
+            </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -185,8 +273,8 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys }) => {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${idx === 0 ? 'bg-yellow-100 text-yellow-600' :
-                                                        idx === 1 ? 'bg-slate-100 text-slate-600' :
-                                                            idx === 2 ? 'bg-orange-50 text-orange-600' : 'bg-slate-50 text-slate-300'
+                                                    idx === 1 ? 'bg-slate-100 text-slate-600' :
+                                                        idx === 2 ? 'bg-orange-50 text-orange-600' : 'bg-slate-50 text-slate-300'
                                                     }`}>
                                                     {idx + 1}
                                                 </div>
@@ -196,8 +284,8 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys }) => {
                                         <td className="px-6 py-4 text-right text-xs text-slate-500 font-mono">{tech.count}</td>
                                         <td className="px-6 py-4 text-right">
                                             <span className={`text-xs font-black px-2 py-1 rounded ${Number(tech.avg) >= 9 ? 'bg-green-50 text-brand-green' :
-                                                    Number(tech.avg) >= 8 ? 'bg-blue-50 text-brand-navy' :
-                                                        'bg-red-50 text-brand-red'
+                                                Number(tech.avg) >= 8 ? 'bg-blue-50 text-brand-navy' :
+                                                    'bg-red-50 text-brand-red'
                                                 }`}>
                                                 {tech.avg}
                                             </span>

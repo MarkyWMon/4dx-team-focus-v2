@@ -25,7 +25,13 @@ const STORAGE_KEYS = {
   TEMPLATES: '4dx_templates',
   BRANDING: '4dx_branding',
   SURVEYS: '4dx_surveys',
+  SURVEY_CONFIG: '4dx_survey_config',
+  TICKETS: '4dx_tickets',
+  WEEKLY_SUMMARY: '4dx_weekly_summary',
 };
+
+// Internal listeners for local state updates (fallback when Firestore fails)
+const surveyConfigListeners: ((config: { startDate: number } | null) => void)[] = [];
 
 const saveLocal = <T>(key: string, data: T): void => {
   try {
@@ -98,10 +104,14 @@ export const StorageService = {
   },
 
   subscribeToMembers: (callback: (members: TeamMember[]) => void) => {
+    // 1. Load local cache immediately
+    const cached = loadLocal<TeamMember[]>(STORAGE_KEYS.MEMBERS, []);
+    if (cached.length > 0) callback(cached);
+
     return onSnapshot(collection(db, "members"),
       (snapshot) => {
         const members = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as TeamMember));
-        console.log('📥 Members subscription received update:', members.map(m => ({ id: m.id, name: m.name, leadMeasureProgress: m.leadMeasureProgress })));
+        // console.log('📥 Members subscription received update:', members.length);
         saveLocal(STORAGE_KEYS.MEMBERS, members);
         callback(members);
       },
@@ -110,6 +120,10 @@ export const StorageService = {
   },
 
   subscribeToCommitments: (callback: (commitments: Commitment[]) => void) => {
+    // 1. Load local cache immediately
+    const cached = loadLocal<Commitment[]>(STORAGE_KEYS.COMMITMENTS, []);
+    if (cached.length > 0) callback(cached);
+
     return onSnapshot(collection(db, "commitments"),
       (snapshot) => {
         const commitments = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Commitment));
@@ -121,6 +135,10 @@ export const StorageService = {
   },
 
   subscribeToWIGSessions: (callback: (sessions: WIGSession[]) => void) => {
+    // 1. Load local cache
+    const cached = loadLocal<WIGSession[]>(STORAGE_KEYS.WIG_SESSIONS, []);
+    if (cached.length > 0) callback(cached);
+
     return onSnapshot(collection(db, "wig_sessions"),
       (snapshot) => {
         const sessions = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as WIGSession));
@@ -381,27 +399,45 @@ export const StorageService = {
   getWIGConfig: () => loadLocal<any>(STORAGE_KEYS.WIG_CONFIG, null),
 
   saveTickets: async (tickets: Ticket[]): Promise<void> => {
-    const batch = writeBatch(db);
-    tickets.forEach(ticket => {
-      const ref = doc(db, "tickets", ticket.id);
-      batch.set(ref, ticket);
-    });
-    await batch.commit();
+    // 1. Save locally first (instant UI update)
+    saveLocal(STORAGE_KEYS.TICKETS, tickets);
+
+    // 2. Save to Firestore in chunks (Batch Limit is 500)
+    const chunkSize = 400; // Safe limit
+    for (let i = 0; i < tickets.length; i += chunkSize) {
+      const chunk = tickets.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+      chunk.forEach(ticket => {
+        const ref = doc(db, "tickets", ticket.id);
+        batch.set(ref, ticket);
+      });
+      try {
+        await batch.commit();
+        console.log(`Saved ticket chunk ${i / chunkSize + 1}`);
+      } catch (e) {
+        console.error("Error saving ticket chunk:", e);
+      }
+    }
   },
 
   subscribeToTickets: (callback: (tickets: Ticket[]) => void) => {
+    // 1. Load local cache immediately
+    const cached = loadLocal<Ticket[]>(STORAGE_KEYS.TICKETS, []);
+    if (cached.length > 0) callback(cached);
+
+    // 2. Subscribe to Firestore
     return onSnapshot(collection(db, "tickets"),
       (snapshot) => {
         const tickets = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Ticket));
+        // 3. Update local cache
+        saveLocal(STORAGE_KEYS.TICKETS, tickets);
         callback(tickets);
       },
       (error) => console.error("Ticket Listener Error:", error)
     );
   },
 
-  getLoginLogs: (): LoginLog[] => [],
-  getChangeRequests: (): ChangeRequest[] => [],
-  getTickets: (): Ticket[] => [],
+  getTickets: (): Ticket[] => loadLocal<Ticket[]>(STORAGE_KEYS.TICKETS, []),
   getCategoryInsights: (): CategoryInsight[] => [],
   resolveChangeRequest: async (id: string, action: 'approve' | 'reject'): Promise<void> => { },
   getLeadMeasureLogs: (measureId: string): LeadMeasureLog[] => [],
@@ -591,6 +627,10 @@ export const StorageService = {
   },
 
   subscribeToSurveys: (callback: (surveys: SurveyResult[]) => void) => {
+    // 1. Load local cache
+    const cached = loadLocal<SurveyResult[]>(STORAGE_KEYS.SURVEYS, []);
+    if (cached.length > 0) callback(cached);
+
     return onSnapshot(collection(db, "surveys"),
       (snapshot) => {
         const surveys = snapshot.docs.map(d => d.data() as SurveyResult);
@@ -601,8 +641,67 @@ export const StorageService = {
     );
   },
 
+  // --- Survey Config (Date Filter) ---
+  saveSurveyConfig: async (config: { startDate: number }): Promise<void> => {
+    // Always save locally first
+    saveLocal(STORAGE_KEYS.SURVEY_CONFIG, config);
+
+    // Notify local listeners immediately
+    surveyConfigListeners.forEach(listener => listener(config));
+
+    try {
+      await setDoc(doc(db, "settings", "survey_config"), config, { merge: true });
+    } catch (e) {
+      console.warn('StorageService: Failed to save survey config to Firestore (using local only):', e);
+      // Do not throw, allowing the app to continue working locally
+    }
+  },
+
+  subscribeToSurveyConfig: (callback: (config: { startDate: number } | null) => void) => {
+    // 1. Register local listener
+    surveyConfigListeners.push(callback);
+
+    // 2. Immediate local load
+    const initialLocalConfig = loadLocal<{ startDate: number } | null>(STORAGE_KEYS.SURVEY_CONFIG, null);
+    if (initialLocalConfig) {
+      callback(initialLocalConfig);
+    }
+
+    // 3. Subscribe to Firestore updates
+    const unsubFirestore = onSnapshot(doc(db, "settings", "survey_config"),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const config = snapshot.data() as { startDate: number };
+          saveLocal(STORAGE_KEYS.SURVEY_CONFIG, config);
+          callback(config);
+        } else {
+          // Check CURRENT local storage to avoid overwriting with null if we have local data
+          // (Stale closure fix)
+          const currentLocal = loadLocal<{ startDate: number } | null>(STORAGE_KEYS.SURVEY_CONFIG, null);
+          if (!currentLocal) callback(null);
+        }
+      },
+      (error) => {
+        console.error("Survey Config Listener Error:", error);
+      }
+    );
+
+    // Return combined unsubscribe
+    return () => {
+      unsubFirestore();
+      const index = surveyConfigListeners.indexOf(callback);
+      if (index > -1) {
+        surveyConfigListeners.splice(index, 1);
+      }
+    };
+  },
+
   // --- Team Insights (AI Summary) ---
   saveWeeklySummary: async (weekId: string, summary: string): Promise<void> => {
+    // 1. Save locally
+    const key = `${STORAGE_KEYS.WEEKLY_SUMMARY}_${weekId}`;
+    saveLocal(key, summary);
+
     try {
       await setDoc(doc(db, "insights", `summary-${weekId}`), {
         weekId,
@@ -610,15 +709,22 @@ export const StorageService = {
         generatedAt: Date.now()
       });
     } catch (e) {
-      console.error("Error saving summary:", e);
+      console.error("Error saving summary to Firestore (local only):", e);
     }
   },
 
   getWeeklySummary: async (weekId: string): Promise<string | null> => {
+    // 1. Try local first
+    const key = `${STORAGE_KEYS.WEEKLY_SUMMARY}_${weekId}`;
+    const local = loadLocal<string | null>(key, null);
+    if (local) return local;
+
     try {
       const snap = await getDoc(doc(db, "insights", `summary-${weekId}`));
       if (snap.exists()) {
-        return snap.data().summary;
+        const summary = snap.data().summary;
+        saveLocal(key, summary); // Cache it
+        return summary;
       }
       return null;
     } catch (e) {
