@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppView, TeamMember, Commitment, LeadMeasure, Ticket, WIGConfig, CommitmentTemplate, BrandingConfig, DEFAULT_BRANDING } from './types';
+import { AppView, TeamMember, Commitment, LeadMeasure, Ticket, WIGConfig, CommitmentTemplate, BrandingConfig, DEFAULT_BRANDING, Achievement } from './types';
 import { StorageService } from './services/storage';
 import { WHDService } from './services/whd';
 import { AIService } from './services/ai';
@@ -311,188 +311,180 @@ const App: React.FC = () => {
   const isManagement = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
-      <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30 px-4 shadow-sm">
-        <div className="max-w-7xl mx-auto h-16 flex justify-between items-center">
-          <div className="flex items-center gap-10">
-            <div className="cursor-pointer group flex items-center gap-3" onClick={() => setView(AppView.DASHBOARD)}>
-              {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt="Logo" className="h-8 w-auto object-contain transition-transform group-hover:scale-105" />
-              ) : (
-                <div className="bg-brand-red h-8 w-8 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-soft group-hover:bg-brand-navy transition-colors">B</div>
-              )}
-              <div className="flex flex-col">
-                <h1 className="text-lg font-bold text-slate-900 tracking-tight uppercase leading-none italic group-hover:text-brand-red transition-colors">BHASVIC</h1>
-                <p className="text-[10px] font-medium text-brand-red uppercase tracking-wider mt-0.5 font-display">Strategy Platform</p>
+    <div className="min-h-screen flex bg-slate-50 overflow-hidden">
+      {/* Sidebar - Cemdash Inspired */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-100 transition-transform duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+        <div className="h-full flex flex-col p-6">
+          {/* Logo / Brand */}
+          <div className="mb-10 cursor-pointer group flex items-center gap-3" onClick={() => setView(AppView.DASHBOARD)}>
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt="Logo" className="h-8 w-auto object-contain" />
+            ) : (
+              <div className="bg-brand-red h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-cem group-hover:bg-brand-navy transition-colors">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               </div>
-            </div>
-            <div className="hidden md:flex gap-6">
-              {[
-                { id: AppView.DASHBOARD, label: 'Scoreboard' },
-                { id: AppView.MY_COMMITMENTS, label: 'Commitments' },
-                { id: AppView.WIG_SESSION, label: 'WIG Session' },
-                { id: AppView.HISTORY, label: 'Audit' },
-                { id: AppView.SURVEYS, label: 'Analytics' },
-                ...(isManagement ? [{ id: AppView.TEAM_MANAGEMENT, label: 'Team Portal' }] : [])
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setView(tab.id as AppView)}
-                  className={`text-xs font-semibold pb-1 transition-all ${view === tab.id ? 'text-brand-red border-b-2 border-brand-red' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            )}
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black text-slate-900 tracking-tighter uppercase leading-none italic">
+                {branding.logoUrl ? '' : 'BHASVIC'}
+              </h1>
+              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Focus Platform</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-5">
-            <div className="text-right hidden sm:block">
-              <div className="flex items-center gap-3 justify-end">
-                <div className="flex flex-col items-end">
-                  <p className="text-xs font-black text-slate-900 uppercase tracking-tight leading-none">{currentUser?.name}</p>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${currentUser?.role === 'ADMIN' ? 'border-brand-red bg-red-50 text-brand-red' : 'border-slate-200 text-slate-400'}`}>
-                      {currentUser?.role}
-                    </span>
-                    <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">WIG Pilot</span>
-                  </div>
-                </div>
-                {currentUser && (
-                  <ProfileDropdown currentUser={currentUser} onLogout={handleLogout} />
-                )}
-              </div>
-            </div>
+          {/* Navigation Items */}
+          <nav className="flex-grow space-y-1">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Main Menu</p>
+            {[
+              { id: AppView.DASHBOARD, label: 'Dashboard', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
+              { id: AppView.MY_COMMITMENTS, label: 'Commitments', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+              { id: AppView.WIG_SESSION, label: 'WIG Session', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+              { id: AppView.SURVEYS, label: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+              ...(isManagement ? [{ id: AppView.TEAM_MANAGEMENT, label: 'Team Portal', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }] : [])
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => { setView(item.id as AppView); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-xs tracking-tight transition-all ${view === item.id ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
+                style={view === item.id ? { backgroundColor: branding.primaryColor } : {}}
+              >
+                <svg className="w-5 h-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} /></svg>
+                {item.label}
+              </button>
+            ))}
+          </nav>
 
-            {/* Mobile Menu Toggle */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-slate-600 hover:text-brand-navy transition-colors"
-            >
-              {isMobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-              )}
-            </button>
+          {/* User Profile / Bottom */}
+          <div className="mt-auto pt-6 border-t border-slate-100">
+            {currentUser && (
+              <div className="flex items-center gap-3 px-2">
+                <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-xs border border-slate-200">
+                  {currentUser.avatar || currentUser.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-grow overflow-hidden">
+                  <p className="text-xs font-black text-slate-900 truncate tracking-tight leading-none mb-1">{currentUser.name}</p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">{currentUser.role}</p>
+                </div>
+                <ProfileDropdown currentUser={currentUser} onLogout={handleLogout} />
+              </div>
+            )}
           </div>
         </div>
+      </aside>
 
-        {/* Mobile Navigation Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 w-full bg-white border-b border-slate-100 shadow-xl animate-fade-in z-40">
-            <div className="p-4 flex flex-col gap-2">
-              {[
-                { id: AppView.DASHBOARD, label: 'Scoreboard' },
-                { id: AppView.MY_COMMITMENTS, label: 'Commitments' },
-                { id: AppView.WIG_SESSION, label: 'WIG Session' },
-                { id: AppView.HISTORY, label: 'Audit' },
-                { id: AppView.SURVEYS, label: 'Analytics' },
-                ...(isManagement ? [{ id: AppView.TEAM_MANAGEMENT, label: 'Team Portal' }] : []),
-                ...(currentUser.role !== 'STAFF' ? [{ id: AppView.MANAGER_DASHBOARD, label: 'My Team' }] : [])
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setView(tab.id as AppView);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`p-4 text-left rounded-xl font-bold uppercase text-xs tracking-widest transition-all ${view === tab.id ? 'bg-brand-red text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-              <div className="mt-2 pt-4 border-t border-slate-100 flex items-center justify-between px-2">
-                <span className="text-xs font-bold text-slate-900">{currentUser?.name}</span>
-                <button onClick={handleLogout} className="text-xs font-bold text-brand-red uppercase">Logout</button>
-              </div>
+      {/* Main Content Area */}
+      <div className="flex-grow md:ml-64 min-h-screen flex flex-col">
+        {/* Mobile Header */}
+        <header className="md:hidden h-16 bg-white border-b border-slate-100 flex justify-between items-center px-6 sticky top-0 z-40">
+          <h1 className="text-sm font-black text-slate-900 uppercase italic tracking-tighter">BHASVIC</h1>
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-600">
+            {isMobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            )}
+          </button>
+        </header>
+
+        {/* Dynamic View Header (Inspired by Cemdash Dashboard Title Row) */}
+        <header className="h-20 flex items-center justify-between px-8 bg-white/50 backdrop-blur-sm border-b border-slate-100/50 sticky top-0 z-30">
+          <div>
+            <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase italic">{view.replace('_', ' ')}</h2>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">BHASVIC Strategy Lab</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {/* Action Buttons inspired by Cemdash top right */}
+            <div className="hidden sm:flex items-center gap-2">
+              <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors bg-white rounded-lg border border-slate-100"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg></button>
+              <div className="h-8 w-px bg-slate-100 mx-2"></div>
+              <button className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shadow-md">Export Data</button>
             </div>
           </div>
-        )}
-      </nav>
+        </header>
 
-      <main className="max-w-7xl w-full mx-auto p-6 py-8 flex-grow">
-        {view === AppView.DASHBOARD && currentUser && (
-          <Dashboard
-            currentUser={currentUser}
-            members={members}
-            wigConfig={wigConfig}
-            commitments={commitments}
-            tickets={tickets}
-            surveys={surveys}
-            surveyStartDate={surveyStartDate}
-            onNavigate={setView}
-          />
-        )}
-        {view === AppView.MY_COMMITMENTS && currentUser && (
-          <MyCommitments
-            currentUser={currentUser}
-            realCurrentWeekId={getWeekId()}
-            selectedWeekId={selectedWeekId}
-            commitments={commitments.filter(c => c.weekId === selectedWeekId && c.memberId === currentUser.id)}
-            allCommitments={commitments.filter(c => c.weekId === selectedWeekId)}
-            tickets={tickets}
-            templates={templates}
-            wigConfig={wigConfig}
-            members={members}
-            onAdd={(desc, leadMeasureId, leadMeasureName) => StorageService.addCommitment(currentUser.id, selectedWeekId, desc, leadMeasureId, leadMeasureName)}
-            onToggle={(id) => StorageService.cycleCommitmentStatus(id)}
-            onUpdate={(id, up) => StorageService.updateCommitment(id, up)}
-            onDelete={(id) => StorageService.deleteCommitment(id)}
-            onPrevWeek={() => setSelectedWeekId(prev => getPreviousWeekId(prev))}
-            onNextWeek={() => setSelectedWeekId(prev => getNextWeekId(prev))}
-          />
-        )}
-        {view === AppView.WIG_SESSION && currentUser && (
-          <WIGSessionView
-            currentUser={currentUser}
-            members={members}
-            currentWeekId={getWeekId()}
-            onClose={() => setView(AppView.DASHBOARD)}
-          />
-        )}
-        {view === AppView.HISTORY && currentUser && <CommitmentHistory currentUser={currentUser} members={members} />}
-        {view === AppView.SURVEYS && currentUser && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Satisfaction Analytics</h2>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Helpdesk Survey Insights</p>
-              </div>
-            </div>
-            <SurveyUpload onUploadComplete={() => { }} />
-            <SurveyAnalytics
+        <main className="p-8 flex-grow">
+          {view === AppView.DASHBOARD && currentUser && (
+            <Dashboard
+              currentUser={currentUser}
+              members={members}
+              wigConfig={wigConfig}
+              commitments={commitments}
+              tickets={tickets}
               surveys={surveys}
-              startDate={surveyStartDate}
-              onDateChange={(date) => StorageService.saveSurveyConfig({ startDate: date })}
+              surveyStartDate={surveyStartDate}
+              onNavigate={setView}
             />
-          </div>
-        )}
+          )}
+          {view === AppView.MY_COMMITMENTS && currentUser && (
+            <MyCommitments
+              currentUser={currentUser}
+              realCurrentWeekId={getWeekId()}
+              selectedWeekId={selectedWeekId}
+              commitments={commitments.filter(c => c.weekId === selectedWeekId && c.memberId === currentUser.id)}
+              allCommitments={commitments.filter(c => c.weekId === selectedWeekId)}
+              tickets={tickets}
+              templates={templates}
+              wigConfig={wigConfig}
+              members={members}
+              onAdd={(desc, leadMeasureId, leadMeasureName) => StorageService.addCommitment(currentUser.id, selectedWeekId, desc, leadMeasureId, leadMeasureName)}
+              onToggle={(id) => StorageService.cycleCommitmentStatus(id)}
+              onUpdate={(id, up) => StorageService.updateCommitment(id, up)}
+              onDelete={(id) => StorageService.deleteCommitment(id)}
+              onPrevWeek={() => setSelectedWeekId(prev => getPreviousWeekId(prev))}
+              onNextWeek={() => setSelectedWeekId(prev => getNextWeekId(prev))}
+            />
+          )}
+          {view === AppView.WIG_SESSION && currentUser && (
+            <WIGSessionView
+              currentUser={currentUser}
+              members={members}
+              currentWeekId={getWeekId()}
+              onClose={() => setView(AppView.DASHBOARD)}
+            />
+          )}
+          {view === AppView.HISTORY && currentUser && <CommitmentHistory currentUser={currentUser} members={members} />}
+          {view === AppView.SURVEYS && currentUser && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Satisfaction Analytics</h2>
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Helpdesk Survey Insights</p>
+                </div>
+              </div>
+              <SurveyUpload onUploadComplete={() => { }} />
+              <SurveyAnalytics
+                surveys={surveys}
+                startDate={surveyStartDate}
+                onDateChange={(date) => StorageService.saveSurveyConfig({ startDate: date })}
+              />
+            </div>
+          )}
 
-        {view === AppView.TEAM_MANAGEMENT && currentUser && isManagement && (
-          <TeamManagement
-            members={members}
-            currentUser={currentUser}
-            leadMeasures={leadMeasures}
-            surveys={[]}
-            templates={templates}
-            onAddMember={(name, email, role) => StorageService.inviteMember(name, email, role)}
-            onRemoveMember={(id) => StorageService.removeMember(id)}
-            onRefreshTickets={() => { }}
-            onUpdateMeasure={() => { }}
-            onDeleteMeasure={() => { }}
-            wigConfig={wigConfig}
-            onUpdateWIGConfig={(config) => StorageService.updateWIGConfig(config)}
-            branding={branding}
-            onUpdateBranding={(config) => StorageService.updateBranding(config)}
-          />
-        )}
-      </main>
+          {view === AppView.TEAM_MANAGEMENT && currentUser && isManagement && (
+            <TeamManagement
+              members={members}
+              currentUser={currentUser}
+              leadMeasures={leadMeasures}
+              surveys={[]}
+              templates={templates}
+              onAddMember={(name, email, role) => StorageService.inviteMember(name, email, role)}
+              onRemoveMember={(id) => StorageService.removeMember(id)}
+              onRefreshTickets={() => { }}
+              onUpdateMeasure={() => { }}
+              onDeleteMeasure={() => { }}
+              wigConfig={wigConfig}
+              onUpdateWIGConfig={(config) => StorageService.updateWIGConfig(config)}
+              branding={branding}
+              onUpdateBranding={(config) => StorageService.updateBranding(config)}
+            />
+          )}
+        </main>
 
-      <footer className="py-8 text-center border-t border-slate-100 bg-white">
-        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest opacity-60">BHASVIC IT Support Strategy Framework &copy; {new Date().getFullYear()}</p>
-      </footer>
-    </div >
+        <footer className="py-8 text-center border-t border-slate-100 bg-white">
+          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest opacity-60">BHASVIC IT Support Strategy Framework &copy; {new Date().getFullYear()}</p>
+        </footer>
+      </div>
+    </div>
   );
 };
 

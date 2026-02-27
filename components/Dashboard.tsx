@@ -172,26 +172,27 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* SECTION A: THE WIG (Lag Measure) - SLIM MODERN */}
-        <section className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-soft border border-slate-100/60 relative overflow-hidden group">
+        <section className="lg:col-span-2 cem-card relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-red to-brand-navy opacity-0 group-hover:opacity-100 transition-opacity"></div>
           <div className="flex justify-between items-end mb-6">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-red/10 text-brand-red uppercase tracking-wider">Lag Measure</span>
-                <span className="text-[10px] text-slate-400 font-medium">{wigConfig?.description || "Monthly Performance Score"}</span>
+              <div className="flex items-center gap-3 mb-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-500 uppercase tracking-widest">WIG Goal</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{wigConfig?.description || "Strategic Focus"}</span>
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">
                 {wigConfig?.title || "Strategy Goal"}
               </h2>
             </div>
             <div className="text-right">
-              {/* Automated Score from Surveys - Slim */}
               <div className="flex flex-col items-end">
-                <span className="text-4xl font-bold text-slate-900 tracking-tighter leading-none">{currentScore}<span className="text-lg text-slate-400 align-top">%</span></span>
-                <span className="text-[10px] font-semibold text-brand-navy uppercase tracking-wide mt-1 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse"></span>
-                  {surveyStartDate ? `From ${new Date(surveyStartDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'All Time'}
+                <span className="text-4xl font-black text-slate-900 tracking-tighter leading-none">
+                  {currentScore}<span className="text-lg text-slate-300 ml-0.5">%</span>
                 </span>
+                <div className="trend-pill trend-up mt-2">
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 15l7-7 7 7" /></svg>
+                  1.2%
+                </div>
               </div>
             </div>
           </div>
@@ -253,40 +254,43 @@ const Dashboard: React.FC<DashboardProps> = ({
           const isWinning = actual >= teamTarget;
 
           return (
-            <div key={measure.id} className="bg-white rounded-2xl p-6 shadow-soft border border-slate-100/60 flex flex-col group hover:shadow-lg transition-all duration-300">
+            <div key={measure.id} className="cem-card group transition-all duration-300">
               <div className="mb-4">
                 <div className="flex justify-between items-start mb-1">
-                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">{measure.name}</h3>
-                  {measure.definition && (
-                    <div className="relative group/info">
-                      <button className="text-slate-300 hover:text-brand-navy transition-colors">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      </button>
-                      <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-slate-800 text-white rounded-xl shadow-xl opacity-0 group-hover/info:opacity-100 transition-opacity z-50 pointer-events-none text-xs leading-relaxed">
-                        {measure.definition}
-                      </div>
-                    </div>
-                  )}
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{measure.name}</h3>
+                  <div className="trend-pill trend-up">
+                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 15l7-7 7 7" /></svg>
+                    2.4%
+                  </div>
                 </div>
 
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="text-3xl font-bold text-slate-900">{actual}</span>
+                <div className="flex items-baseline gap-2 mb-4">
+                  <span className="text-3xl font-bold text-slate-900 tracking-tight">{actual}</span>
                   <span className="text-xs text-slate-400 font-medium">/ {teamTarget} target</span>
                 </div>
 
-                {/* Slim Progress Bar */}
-                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden mb-2">
+                {/* Cemdash Progress Bar */}
+                <div className="cem-progress-container mb-3">
                   <div
-                    className={`h-full rounded-full transition-all duration-1000 ${isWinning ? 'bg-brand-green' : 'bg-brand-red'}`}
-                    style={{ width: `${percent}%` }}
+                    className="cem-progress-bar transition-all duration-1000"
+                    style={{
+                      width: `${percent}%`,
+                      backgroundColor: isWinning ? 'var(--success-color)' : 'var(--primary-color)'
+                    }}
                   ></div>
                 </div>
 
-                <div className={`text-xs font-bold ${isWinning ? 'text-brand-green' : 'text-brand-red'} flex items-center gap-1.5`}>
+                <div className={`text-[10px] font-bold uppercase tracking-wider ${isWinning ? 'text-emerald-600' : 'text-rose-600'} flex items-center gap-1.5`}>
                   {isWinning ? (
-                    <><span>✓</span> On Track</>
+                    <>
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-600"></div>
+                      Target Achieved
+                    </>
                   ) : (
-                    <><span>⚠</span> {teamTarget - actual} needed</>
+                    <>
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse"></div>
+                      {teamTarget - actual} Needed
+                    </>
                   )}
                 </div>
 

@@ -18,20 +18,43 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
         const lines = text.split('\n');
         const surveys: SurveyResult[] = [];
 
-        // Skip header row
+        if (lines.length < 2) return surveys;
+
+        // Parse header row to find column positions by name (case-insensitive)
+        const rawHeaders = lines[0].split('\t').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+        const col = (name: string): number => {
+            const exact = rawHeaders.indexOf(name.toLowerCase());
+            if (exact !== -1) return exact;
+            return rawHeaders.findIndex(h => h.includes(name.toLowerCase()));
+        };
+
+        const dateCol = col('date');
+        const clientCol = col('client');
+        const locationCol = col('location');
+        const ticketCol = col('ticket no') !== -1 ? col('ticket no') : col('ticket');
+        const techCol = col('tech');
+        const problemCol = col('problem type') !== -1 ? col('problem type') : col('problem');
+        const q1Col = col('q1');
+        const q2Col = col('q2');
+        const q3Col = col('q3');
+
+        console.log('TSV columns detected:', rawHeaders);
+        console.log('Tech column index:', techCol, '| Ticket column index:', ticketCol);
+
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
 
-            const parts = line.split('\t').map(p => p.replace(/^"|"$/g, '')); // Remove quotes
-
-            if (parts.length < 8) continue;
+            const parts = line.split('\t').map(p => p.replace(/^"|"$/g, '').trim());
 
             // Extract Date (DD/MM/YYYY HH:mm)
-            const dateStr = parts[0];
-            const [day, month, yearTime] = dateStr.split('/');
-            const [year, time] = yearTime.split(' ');
-            const timestamp = new Date(`${year}-${month}-${day}T${time}`).getTime();
+            const dateStr = dateCol !== -1 ? parts[dateCol] : parts[0];
+            let timestamp = Date.now();
+            try {
+                const [day, month, yearTime] = dateStr.split('/');
+                const [year, time] = yearTime.split(' ');
+                timestamp = new Date(`${year}-${month}-${day}T${time}`).getTime();
+            } catch { /* keep default */ }
 
             // Extract Scores format: "10: Extremely Satisfied" -> 10
             const extractScore = (str: string) => {
@@ -40,25 +63,25 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
                 return match ? parseInt(match[1]) : 0;
             };
 
-            const q1 = extractScore(parts[6]);
-            const q2 = extractScore(parts[7]);
-            const q3 = extractScore(parts[8]);
-
-            // Calculate Average (Percentage based on 10-point scale is just avg * 10)
+            const q1 = extractScore(q1Col !== -1 ? parts[q1Col] : parts[6]);
+            const q2 = extractScore(q2Col !== -1 ? parts[q2Col] : parts[7]);
+            const q3 = extractScore(q3Col !== -1 ? parts[q3Col] : parts[8]);
             const avg = (q1 + q2 + q3) / 3;
 
-            // Ticket No is unique ID
-            const ticketNo = parts[3];
+            const ticketNo = ticketCol !== -1 ? parts[ticketCol] : parts[3];
+            const tech = techCol !== -1 ? parts[techCol] : parts[4];
+
+            if (!ticketNo && !tech) continue;
 
             surveys.push({
-                id: ticketNo,
-                ticketNo: ticketNo,
+                id: ticketNo || `row-${i}`,
+                ticketNo,
                 date: timestamp,
                 weekId: getWeekId(new Date(timestamp)),
-                client: parts[1],
-                location: parts[2],
-                tech: parts[4],
-                problemType: parts[5],
+                client: clientCol !== -1 ? parts[clientCol] : parts[1],
+                location: locationCol !== -1 ? parts[locationCol] : parts[2],
+                tech,
+                problemType: problemCol !== -1 ? parts[problemCol] : parts[5],
                 q1,
                 q2,
                 q3,
@@ -189,8 +212,9 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
             )}
 
             <div className="mt-4 bg-slate-50 rounded-xl p-4 text-[10px] text-slate-400 font-mono">
-                <p className="font-bold mb-2">Expected Columns:</p>
-                <p>Date | Client | Location | Ticket No | Tech | Problem Type | Q1 | Q2 | Q3</p>
+                <p className="font-bold mb-2">Expected Columns (any order):</p>
+                <p>Date | Client | Location | Ticket No | <strong>Tech</strong> | Problem Type | Q1 | Q2 | Q3</p>
+                <p className="mt-1 text-slate-400">Columns are matched by name — order doesn't matter.</p>
             </div>
         </div>
     );
