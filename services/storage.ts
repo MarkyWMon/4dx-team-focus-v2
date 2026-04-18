@@ -17,6 +17,9 @@ import {
   writeBatch
 } from 'firebase/firestore';
 
+// Provisioning lock to prevent concurrent user creation
+let isProvisioning = false;
+
 const STORAGE_KEYS = {
   MEMBERS: '4dx_members',
   COMMITMENTS: '4dx_commitments',
@@ -159,59 +162,127 @@ export const StorageService = {
       avatar: (name || "??").split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
       weeklyCommitment: '',
       leadMeasureProgress: {},
-    };
-    await setDoc(doc(db, "members", id), newMember);
-  },
-
-  linkAndProvision: async (uid: string, name: string, email: string, role: string): Promise<TeamMember> => {
-    console.log(`Provisioning user ${email} with role ${role}...`);
-    if (!uid || !email) throw new Error("Cannot provision: UID or Email missing.");
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) throw new Error("Invalid email format.");
-
-    // Role validation
-    const validRoles = ['ADMIN', 'MANAGER', 'STAFF'];
-    if (!validRoles.includes(role)) {
-      console.warn(`Invalid role ${role} requested, defaulting to STAFF.`);
-      role = 'STAFF';
-    }
-
-    // Basic sanitization
-    const sanitizedName = (name || email.split('@')[0] || 'User').replace(/[<>]/g, '').trim();
-
-    const avatar = sanitizedName
-      .split(/[\s.@]/)
-      .filter(Boolean)
-      .map(n => n[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
-
-    const member: TeamMember = {
-      id: uid,
-      name: sanitizedName,
-      email: email.toLowerCase().trim(),
-      role: role as any,
-      jobTitle: role === 'ADMIN' ? "System Administrator" : "IT Professional",
-      avatar: avatar,
-      weeklyCommitment: '',
-      leadMeasureProgress: {},
-      // Gamification v2 Initial Defaults
       score: 0,
       streak: 0,
       longestStreak: 0,
       achievements: [],
     };
+    await setDoc(doc(db, "members", id), newMember);
+  },
+
+  linkAndProvision: async (uid: string, name: string, email: string, role: string): Promise<TeamMember> => {
+    // Guard against concurrent provisioning
+    if (isProvisioning) {
+      console.log(`Provisioning already in progress for ${email}, waiting...`);
+      // Wait until provisioning is done (poll every 200ms, max 5s)
+      await new Promise<void>((resolve) => {
+        let elapsed = 0;
+        const interval = setInterval(() => {
+          if (!isProvisioning || elapsed > 5000) {
+            clearInterval(interval);
+            resolve();
+          }
+          elapsed += 200;
+        }, 200);
+      });
+    }
+
+    isProvisioning = true;
+    console.log(`Provisioning user ${email} with role ${role}...`);
 
     try {
+      if (!uid || !email) throw new Error("Cannot provision: UID or Email missing.");
+
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) throw new Error("Invalid email format.");
+
+      // Role validation (use local variable to avoid parameter mutation)
+      const validRoles = ['ADMIN', 'MANAGER', 'STAFF'];
+      const effectiveRole = validRoles.includes(role) ? role : 'STAFF';
+      if (!validRoles.includes(role)) {
+        console.warn(`Invalid role ${role} requested, defaulting to STAFF.`);
+      }
+
+      // Check if user already exists with this UID
+      const existingById = await getDoc(doc(db, "members", uid));
+      if (existingById.exists()) {
+        const existingMember = { ...existingById.data(), id: uid } as TeamMember;
+        console.log(`User ${email} already provisioned (UID: ${uid}), skipping.`);
+        // Still clean up any orphaned records
+        await StorageService.cleanupDuplicateMembers(uid, email.toLowerCase().trim());
+        return existingMember;
+      }
+
+      // Basic sanitization
+      const sanitizedName = (name || email.split('@')[0] || 'User').replace(/[<>]/g, '').trim();
+
+      const avatar = sanitizedName
+        .split(/[\s.@]/)
+        .filter(Boolean)
+        .map(n => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+
+      // Check for existing record by email to preserve role/score data
+      const existingByEmail = await StorageService.getMemberByEmail(email.toLowerCase().trim());
+
+      const member: TeamMember = {
+        id: uid,
+        name: sanitizedName,
+        email: email.toLowerCase().trim(),
+        role: (existingByEmail?.role || effectiveRole) as any,
+        jobTitle: effectiveRole === 'ADMIN' ? "System Administrator" : "IT Professional",
+        avatar: avatar,
+        weeklyCommitment: '',
+        leadMeasureProgress: {},
+        // Preserve gamification data if migrating from a pending record
+        score: existingByEmail?.score || 0,
+        streak: existingByEmail?.streak || 0,
+        longestStreak: existingByEmail?.longestStreak || 0,
+        achievements: existingByEmail?.achievements || [],
+      };
+
       await setDoc(doc(db, "members", uid), member);
       console.log("Successfully provisioned member in Firestore.");
+
+      // Clean up orphaned records (pending-* docs, duplicates with same email but different ID)
+      await StorageService.cleanupDuplicateMembers(uid, email.toLowerCase().trim());
+
       return member;
     } catch (e: any) {
       console.error("Failed to provision member:", e.message);
       throw e;
+    } finally {
+      isProvisioning = false;
+    }
+  },
+
+  /**
+   * Removes duplicate member records with the same email but a different ID.
+   * This cleans up orphaned pending-* documents and prevents the "3 or 4 versions" bug.
+   */
+  cleanupDuplicateMembers: async (keepId: string, email: string): Promise<void> => {
+    try {
+      const q = query(collection(db, "members"), where("email", "==", email));
+      const snap = await getDocs(q);
+
+      if (snap.size <= 1) return; // No duplicates
+
+      const deletions: Promise<void>[] = [];
+      snap.docs.forEach(d => {
+        if (d.id !== keepId) {
+          console.log(`Cleaning up duplicate member record: ${d.id} (${email})`);
+          deletions.push(deleteDoc(doc(db, "members", d.id)));
+        }
+      });
+
+      await Promise.all(deletions);
+      console.log(`Cleaned up ${deletions.length} duplicate record(s) for ${email}`);
+    } catch (e) {
+      console.error("Error cleaning up duplicate members:", e);
+      // Non-fatal — don't throw
     }
   },
 
@@ -612,7 +683,29 @@ export const StorageService = {
         batch.set(ref, survey);
       });
 
+      console.log(`[StorageService] Committing survey batch ${i / chunkSize + 1} (${chunk.length} items)...`);
+      try {
+        await batch.commit();
+        console.log(`[StorageService] Batch ${i / chunkSize + 1} committed successfully.`);
+      } catch (e: any) {
+        console.error(`[StorageService] FAILED to commit batch ${i / chunkSize + 1}:`, e);
+        throw new Error(`Firebase Error during batch save: ${e.message}`);
+      }
+    }
+    console.log(`[StorageService] All ${surveys.length} surveys processed.`);
+  },
+
+  clearAllSurveys: async (): Promise<void> => {
+    try {
+      const snapshot = await getDocs(collection(db, "surveys"));
+      const batch = writeBatch(db);
+      snapshot.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
+      saveLocal(STORAGE_KEYS.SURVEYS, []);
+      console.log(`[StorageService] Purged ${snapshot.size} surveys.`);
+    } catch (e) {
+      console.error("Error clearing surveys:", e);
+      throw e;
     }
   },
 

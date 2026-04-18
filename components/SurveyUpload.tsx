@@ -15,13 +15,30 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
     const [isDragging, setIsDragging] = useState(false);
 
     const parseTSV = (text: string): SurveyResult[] => {
-        const lines = text.split('\n');
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
         const surveys: SurveyResult[] = [];
 
         if (lines.length < 2) return surveys;
 
-        // Parse header row to find column positions by name (case-insensitive)
-        const rawHeaders = lines[0].split('\t').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+        // --- NEW: Robust Header Detection ---
+        // Find the actual header row by looking for keywords
+        let headerRowIndex = 0;
+        let rawHeaders: string[] = [];
+
+        for (let i = 0; i < Math.min(lines.length, 10); i++) {
+            const currentHeaders = lines[i].split('\t').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+            if (currentHeaders.some(h => h.includes('date') || h.includes('ticket') || h.includes('tech'))) {
+                headerRowIndex = i;
+                rawHeaders = currentHeaders;
+                break;
+            }
+        }
+
+        if (rawHeaders.length === 0) {
+            console.error("Could not detect any header row in TSV.");
+            return [];
+        }
+
         const col = (name: string): number => {
             const exact = rawHeaders.indexOf(name.toLowerCase());
             if (exact !== -1) return exact;
@@ -32,63 +49,173 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
         const clientCol = col('client');
         const locationCol = col('location');
         const ticketCol = col('ticket no') !== -1 ? col('ticket no') : col('ticket');
-        const techCol = col('tech');
+
+        const techCol = (() => {
+            const candidates = ['tech', 'technician', 'engineer', 'agent', 'staff', 'resolved by', 'handled by', 'assigned to', 'assignee'];
+            // First pass: look for exact matches that aren't the ticket column
+            for (const candidate of candidates) {
+                const idx = rawHeaders.findIndex(h => h === candidate);
+                if (idx !== -1 && idx !== ticketCol) return idx;
+            }
+            // Second pass: look for partial matches
+            for (const candidate of candidates) {
+                const idx = rawHeaders.findIndex(h => h.includes(candidate));
+                if (idx !== -1 && idx !== ticketCol) return idx;
+            }
+            return -1;
+        })();
+
         const problemCol = col('problem type') !== -1 ? col('problem type') : col('problem');
-        const q1Col = col('q1');
-        const q2Col = col('q2');
-        const q3Col = col('q3');
+        const responsesCol = col('responses');
 
-        console.log('TSV columns detected:', rawHeaders);
-        console.log('Tech column index:', techCol, '| Ticket column index:', ticketCol);
+        // Improved Q-column detection: also look for "(1)", "(2)", "(3)" or "question 1" patterns
+        const q1Col = (() => {
+            if (col('q1') !== -1) return col('q1');
+            if (responsesCol !== -1) return responsesCol;
+            // Search for headers containing "(1)" or "question 1" or "#1"
+            const idx = rawHeaders.findIndex(h => /\(1\)/.test(h) || /question\s*1/i.test(h) || /#1/i.test(h));
+            return idx !== -1 ? idx : -1;
+        })();
+        const q2Col = (() => {
+            if (col('q2') !== -1) return col('q2');
+            if (q1Col !== -1) return q1Col + 1;
+            const idx = rawHeaders.findIndex(h => /\(2\)/.test(h) || /question\s*2/i.test(h) || /#2/i.test(h));
+            return idx !== -1 ? idx : -1;
+        })();
+        const q3Col = (() => {
+            if (col('q3') !== -1) return col('q3');
+            if (q1Col !== -1) return q1Col + 2;
+            const idx = rawHeaders.findIndex(h => /\(3\)/.test(h) || /question\s*3/i.test(h) || /#3/i.test(h));
+            return idx !== -1 ? idx : -1;
+        })();
 
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
+        console.log(`[SurveyUpload] Header Row found at index ${headerRowIndex}:`, rawHeaders);
+        // console.log('Tech column index:', techCol, '| Ticket column index:', ticketCol); // Removed old log
+        // if (techCol === -1) { // Removed old log
+        //     console.warn('⚠️ No tech/agent column found in TSV headers. Falling back to column index 4. Headers found:', rawHeaders);
+        // }
+
+        for (let i = headerRowIndex + 1; i < lines.length; i++) {
+            const line = lines[i].trim(); // Keep trim for safety, though lines are already trimmed
             if (!line) continue;
 
             const parts = line.split('\t').map(p => p.replace(/^"|"$/g, '').trim());
+            if (parts.length < 2) continue; // Added check for minimal parts
 
-            // Extract Date (DD/MM/YYYY HH:mm)
+            // Extract Date (DD/MM/YYYY HH:mm or DD/MM/YY)
             const dateStr = dateCol !== -1 ? parts[dateCol] : parts[0];
             let timestamp = Date.now();
             try {
-                const [day, month, yearTime] = dateStr.split('/');
-                const [year, time] = yearTime.split(' ');
-                timestamp = new Date(`${year}-${month}-${day}T${time}`).getTime();
-            } catch { /* keep default */ }
+                // Handle DD/MM/YYYY HH:mm or DD/MM/YYYY or YYYY-MM-DD
+                if (dateStr.includes('/')) {
+                    const [day, month, yearPart] = dateStr.split('/');
+                    let [year, time] = yearPart.includes(' ') ? yearPart.split(' ') : [yearPart, '00:00:00']; // Changed to 00:00:00
+                    // Handle 2-digit years (e.g., 26 -> 2026)
+                    if (year.length === 2) {
+                        year = `20${year}`;
+                    }
 
-            // Extract Scores format: "10: Extremely Satisfied" -> 10
+                    timestamp = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${time || '00:00:00'}`).getTime(); // Changed to 00:00:00
+                } else {
+                    timestamp = new Date(dateStr).getTime();
+                }
+            } catch (e) {
+                // if (i < 5) console.warn(`[SurveyUpload] Failed to parse date: "${dateStr}"`, e); // Removed old log
+            }
+
+            if (isNaN(timestamp)) timestamp = Date.now();
+
+            // if (i < 3) { // Removed old log
+            //     console.log(`[SurveyUpload] Row ${i} Diagnostic:`, {
+            //         dateStr,
+            //         parsedDate: new Date(timestamp).toLocaleDateString(),
+            //         weekId: getWeekId(new Date(timestamp))
+            //     });
+            // }
+
+            // Extract Scores format: "10: Extremely Satisfied" -> 10 OR raw "10"
             const extractScore = (str: string) => {
                 if (!str) return 0;
-                const match = str.match(/^(\d+):/);
-                return match ? parseInt(match[1]) : 0;
+                // Match "10: ..."
+                const matchLong = str.match(/^(\d+):/);
+                if (matchLong) return parseInt(matchLong[1]);
+
+                // Match raw number "10" or "8.5"
+                const matchRaw = str.match(/^(\d+(\.\d+)?)$/);
+                if (matchRaw) return parseFloat(matchRaw[1]);
+
+                return 0;
             };
 
-            const q1 = extractScore(q1Col !== -1 ? parts[q1Col] : parts[6]);
-            const q2 = extractScore(q2Col !== -1 ? parts[q2Col] : parts[7]);
-            const q3 = extractScore(q3Col !== -1 ? parts[q3Col] : parts[8]);
+            // Actual layout: Date(0) Survey(1) Client(2) Location(3) TicketNo(4) Tech(5) ProblemType(6) Responses(7,8,9...)
+            const q1 = extractScore(q1Col !== -1 ? parts[q1Col] : '');
+            const q2 = extractScore(q2Col !== -1 ? parts[q2Col] : '');
+            const q3 = extractScore(q3Col !== -1 ? parts[q3Col] : '');
             const avg = (q1 + q2 + q3) / 3;
 
-            const ticketNo = ticketCol !== -1 ? parts[ticketCol] : parts[3];
-            const tech = techCol !== -1 ? parts[techCol] : parts[4];
+            const ticketNo = (ticketCol !== -1 ? parts[ticketCol] : undefined)?.trim(); // Fallback to undefined
+            const tech = (techCol !== -1 ? parts[techCol] : undefined)?.trim(); // Fallback to undefined
 
             if (!ticketNo && !tech) continue;
+            
+            // Filter out rows where tech is empty or looks like a ticket number (purely numeric)
+            if (tech && /^\d+$/.test(tech)) {
+                console.warn(`[SurveyUpload] Skipping row ${i}: tech "${tech}" looks like a ticket number, not a name`);
+                continue;
+            }
 
-            surveys.push({
-                id: ticketNo || `row-${i}`,
-                ticketNo,
+            const result = {
+                id: ticketNo || `row-${i}-${Date.now()}`,
+                ticketNo: ticketNo || '',
                 date: timestamp,
                 weekId: getWeekId(new Date(timestamp)),
-                client: clientCol !== -1 ? parts[clientCol] : parts[1],
-                location: locationCol !== -1 ? parts[locationCol] : parts[2],
-                tech,
-                problemType: problemCol !== -1 ? parts[problemCol] : parts[5],
+                client: (clientCol !== -1 ? parts[clientCol] : '')?.trim() || '',
+                location: (locationCol !== -1 ? parts[locationCol] : '')?.trim() || '',
+                tech: tech || '',
+                problemType: (problemCol !== -1 ? parts[problemCol] : '')?.trim() || '',
                 q1,
                 q2,
                 q3,
                 average: avg
-            });
+            };
+
+            if (surveys.length < 3) { // Log first 3 parsed rows
+                console.log(`[SurveyUpload] Parsed Row ${surveys.length + 1}:`, result);
+            }
+            surveys.push(result);
         }
+        // console.log(`Parsed ${surveys.length} surveys successfully. Scores sample:`, surveys.slice(0, 3).map(s => s.average)); // Removed old log
         return surveys;
+    };
+
+    /**
+     * Detects file encoding by reading the BOM (Byte Order Mark).
+     * UTF-16LE files start with 0xFF 0xFE.
+     */
+    const detectEncoding = (file: File): Promise<string> => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const buffer = e.target?.result as ArrayBuffer;
+                if (buffer.byteLength >= 2) {
+                    const bytes = new Uint8Array(buffer);
+                    // UTF-16LE BOM: FF FE
+                    if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
+                        resolve('UTF-16LE');
+                        return;
+                    }
+                    // UTF-8 BOM: EF BB BF
+                    if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+                        resolve('UTF-8');
+                        return;
+                    }
+                }
+                resolve('UTF-8'); // Default
+            };
+            reader.onerror = () => resolve('UTF-8');
+            // Read only first 4 bytes for BOM detection
+            reader.readAsArrayBuffer(file.slice(0, 4));
+        });
     };
 
     const processFile = (file: File) => {
@@ -96,33 +223,41 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
         setError(null);
         setUploadStats(null);
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            try {
-                const text = event.target?.result as string;
-                const parsedSurveys = parseTSV(text);
+        // Detect encoding first, then read with correct encoding
+        detectEncoding(file).then(encoding => {
+            console.log(`[SurveyUpload] Detected encoding: ${encoding}`);
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const text = event.target?.result as string;
+                    console.log(`[SurveyUpload] First 200 chars of parsed text:`, text.substring(0, 200));
+                    const parsedSurveys = parseTSV(text);
 
-                if (parsedSurveys.length === 0) {
-                    setError("No valid survey data found in file.");
+                    if (parsedSurveys.length === 0) {
+                        setError("No valid survey data found. Please check headers.");
+                        setIsUploading(false);
+                        return;
+                    }
+
+                    console.log(`[SurveyUpload] Sending ${parsedSurveys.length} surveys to Storage...`);
+                    await StorageService.saveSurveys(parsedSurveys);
+                    console.log(`[SurveyUpload] Storage save returned.`);
+
+                    setUploadStats({ total: parsedSurveys.length, new: parsedSurveys.length });
                     setIsUploading(false);
-                    return;
+                    onUploadComplete();
+
+                    alert(`Successfully processed ${parsedSurveys.length} surveys! Check the Dashboard/Firebase console.`);
+
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                } catch (err: any) {
+                    console.error("[SurveyUpload] Save failed:", err);
+                    setError(`Upload failed: ${err.message}`);
+                    setIsUploading(false);
                 }
-
-                console.log(`Parsed ${parsedSurveys.length} surveys. Uploading...`);
-                await StorageService.saveSurveys(parsedSurveys);
-
-                setUploadStats({ total: parsedSurveys.length, new: parsedSurveys.length });
-                setIsUploading(false);
-                onUploadComplete();
-
-                if (fileInputRef.current) fileInputRef.current.value = '';
-            } catch (err) {
-                console.error("Upload failed", err);
-                setError("Failed to parse or upload file. Please check format.");
-                setIsUploading(false);
-            }
-        };
-        reader.readAsText(file);
+            };
+            reader.readAsText(file, encoding);
+        });
     };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,6 +289,25 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
                     <h3 className="text-lg font-black text-brand-navy uppercase tracking-tight">Upload Surveys</h3>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TSV Format required</p>
                 </div>
+                <button
+                    onClick={async () => {
+                        if (window.confirm("Are you sure you want to delete ALL survey data? This cannot be undone.")) {
+                            try {
+                                setIsUploading(true);
+                                await StorageService.clearAllSurveys();
+                                onUploadComplete();
+                                alert("All surveys cleared successfully.");
+                            } catch (e: any) {
+                                alert("Failed to clear: " + e.message);
+                            } finally {
+                                setIsUploading(false);
+                            }
+                        }
+                    }}
+                    className="text-[10px] font-black uppercase text-slate-400 hover:text-brand-red transition-colors tracking-widest"
+                >
+                    Clear All Surveys
+                </button>
             </div>
 
             <div

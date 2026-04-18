@@ -208,6 +208,16 @@ const App: React.FC = () => {
     }
   }, [isAuthorized, currentUser?.id, commitments.length]);
 
+  // --- DIAGNOSTICS: Survey Data Monitoring ---
+  useEffect(() => {
+    if (surveys.length > 0) {
+      const dates = surveys.map(s => s.date).filter(d => !isNaN(d));
+      const minDate = dates.length > 0 ? new Date(Math.min(...dates)).toLocaleDateString() : 'None';
+      const maxDate = dates.length > 0 ? new Date(Math.max(...dates)).toLocaleDateString() : 'None';
+      console.log(`📊 Surveys updated: ${surveys.length} total | Range: ${minDate} to ${maxDate} | Filter Start: ${surveyStartDate ? new Date(surveyStartDate).toLocaleDateString() : 'None'}`);
+    }
+  }, [surveys, surveyStartDate]);
+
   // Automatic ticket sync & AI Pre-generation for managers/admins
   useEffect(() => {
     if (!currentUser || !['ADMIN', 'MANAGER'].includes(currentUser.role)) return;
@@ -284,6 +294,61 @@ const App: React.FC = () => {
     setCurrentUser(null);
     setIsAuthorized(false);
     setView(AppView.LOGIN);
+  };
+
+  const handleExport = () => {
+    let csv = '';
+    let filename = 'export.csv';
+
+    const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const toCSV = (headers: string[], rows: any[][]) =>
+      [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+
+    if (view === AppView.SURVEYS) {
+      filename = `survey-results-${new Date().toISOString().split('T')[0]}.csv`;
+      csv = toCSV(
+        ['Date', 'Ticket No', 'Tech', 'Client', 'Location', 'Problem Type', 'Q1 (Resolution)', 'Q2 (Professionalism)', 'Q3 (Speed)', 'Average'],
+        surveys.map(s => [
+          new Date(s.date).toLocaleDateString('en-GB'),
+          s.ticketNo, s.tech, s.client, s.location, s.problemType,
+          s.q1, s.q2, s.q3, Number(s.average).toFixed(1)
+        ])
+      );
+    } else if (view === AppView.MY_COMMITMENTS || view === AppView.HISTORY) {
+      filename = `commitments-${new Date().toISOString().split('T')[0]}.csv`;
+      csv = toCSV(
+        ['Week', 'Member', 'Commitment', 'Status', 'Lead Measure'],
+        commitments.map(c => [
+          c.weekId,
+          members.find(m => m.id === c.memberId)?.name ?? c.memberId,
+          c.description, c.status, c.leadMeasureName ?? ''
+        ])
+      );
+    } else if (view === AppView.TEAM_MANAGEMENT) {
+      filename = `team-members-${new Date().toISOString().split('T')[0]}.csv`;
+      csv = toCSV(
+        ['Name', 'Email', 'Role', 'Job Title'],
+        members.map(m => [m.name, m.email, m.role, m.jobTitle])
+      );
+    } else {
+      // Dashboard — export recent tickets
+      filename = `tickets-${new Date().toISOString().split('T')[0]}.csv`;
+      csv = toCSV(
+        ['Date', 'Ticket ID', 'Summary', 'Category', 'Assignee', 'Requestor', 'Status'],
+        tickets.map(t => [
+          new Date(t.createdAt).toLocaleDateString('en-GB'),
+          t.id, t.summary, t.category, t.assignee, t.requestor, t.status ?? ''
+        ])
+      );
+    }
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (authLoading) {
@@ -397,7 +462,10 @@ const App: React.FC = () => {
             <div className="hidden sm:flex items-center gap-2">
               <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors bg-white rounded-lg border border-slate-100"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg></button>
               <div className="h-8 w-px bg-slate-100 mx-2"></div>
-              <button className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shadow-md">Export Data</button>
+              <button onClick={handleExport} className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                Export CSV
+              </button>
             </div>
           </div>
         </header>
@@ -467,7 +535,7 @@ const App: React.FC = () => {
               leadMeasures={leadMeasures}
               surveys={[]}
               templates={templates}
-              onAddMember={(name, email, role) => StorageService.inviteMember(name, email, role)}
+              onAddMember={async (name, email, role) => await StorageService.inviteMember(name, email, role)}
               onRemoveMember={(id) => StorageService.removeMember(id)}
               onRefreshTickets={() => { }}
               onUpdateMeasure={() => { }}

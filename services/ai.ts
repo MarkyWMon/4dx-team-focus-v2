@@ -297,7 +297,7 @@ export const AIService = {
       if (completed.length === 0) return "No commitments completed this week yet. Let's get moving!";
 
       const prompt = `
-        You are an enthusiastic Team Lead summarizing the week's achievements for an IT Support Team.
+        You are a reserved and professional Team Lead summarizing the week's achievements for an IT Support Team.
         
         WEEK ID: ${weekId}
         
@@ -305,10 +305,10 @@ export const AIService = {
         ${completed.map(c => `- ${c.description} (by ${c.userName || 'Team Member'})`).join('\n')}
 
         TASK:
-        Write a short, punchy, and motivational summary (max 3-4 sentences) of what the team accomplished this week.
-        - Highlight specific wins (e.g. "We fixed the wifi", "We updated 5 guides").
-        - Mention specific people if they did something notable, but keep it balanced.
-        - Tone: Professional but high energy. "Did you know..." style is good.
+        Write a short, factual summary (max 3 sentences) of what the team accomplished this week.
+        - List specific wins (e.g. "Resolution of wifi connectivity issues", "Update of 5 technical guides").
+        - Mention specific people if they were responsible for a notable task, but keep it understated.
+        - Tone: Dry, factual, and very British. Avoid being upbeat, effusive, or using exclamation marks. Focus on performance and strategic alignment.
         - British English.
         - No markdown formatting, just plain text.
       `;
