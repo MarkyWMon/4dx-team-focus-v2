@@ -56,6 +56,9 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
   const [showDrafts, setShowDrafts] = useState(false);
 
   const [isBrandingSaved, setIsBrandingSaved] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState(false);
 
   // Branding State
   const [primaryColor, setPrimaryColor] = useState(branding?.primaryColor || '');
@@ -174,12 +177,26 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
     setTimeout(() => setIsWigSaved(false), 2000);
   };
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteName || !inviteEmail) return;
-    onAddMember(inviteName, inviteEmail.toLowerCase().trim(), inviteRole);
-    setInviteName('');
-    setInviteEmail('');
+    if (!inviteName || !inviteEmail || isInviting) return;
+
+    setIsInviting(true);
+    setInviteError(null);
+    setInviteSuccess(false);
+
+    try {
+      await onAddMember(inviteName, inviteEmail.toLowerCase().trim(), inviteRole);
+      setInviteName('');
+      setInviteEmail('');
+      setInviteSuccess(true);
+      setTimeout(() => setInviteSuccess(false), 3000);
+    } catch (err: any) {
+      console.error("Invite Error:", err);
+      setInviteError(err.message || "Failed to authorize access. Check permissions.");
+    } finally {
+      setIsInviting(false);
+    }
   };
 
   const handleGenerateAIDrafts = async () => {
@@ -222,31 +239,62 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
 
         {expanded.roster && (
           <div className="p-6 pt-0 animate-fade-in">
-            <form onSubmit={handleInvite} className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6">
-              <input
-                className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none focus:ring-4 focus:ring-brand-navy/5 transition-all"
-                placeholder="Staff Name"
-                value={inviteName}
-                onChange={e => setInviteName(e.target.value)}
-              />
-              <input
-                className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none focus:ring-4 focus:ring-brand-navy/5 transition-all"
-                placeholder="BHASVIC Email"
-                value={inviteEmail}
-                onChange={e => setInviteEmail(e.target.value)}
-              />
-              <select
-                className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none"
-                value={inviteRole}
-                onChange={e => setInviteRole(e.target.value as any)}
-              >
-                <option value="STAFF">Team Member</option>
-                <option value="MANAGER">Manager</option>
-                <option value="ADMIN">Administrator</option>
-              </select>
-              <button type="submit" className="bg-brand-navy text-white font-semibold text-sm rounded-lg hover:bg-black transition-all shadow-md active:scale-95 px-4 py-2.5">
-                Authorise Access
-              </button>
+            <form onSubmit={handleInvite} className="space-y-3 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <input
+                  className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none focus:ring-4 focus:ring-brand-navy/5 transition-all"
+                  placeholder="Staff Name"
+                  value={inviteName}
+                  onChange={e => setInviteName(e.target.value)}
+                  disabled={isInviting}
+                />
+                <input
+                  className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none focus:ring-4 focus:ring-brand-navy/5 transition-all"
+                  placeholder="BHASVIC Email"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  disabled={isInviting}
+                />
+                <select
+                  className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none"
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value as any)}
+                  disabled={isInviting}
+                >
+                  <option value="STAFF">Team Member</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="ADMIN">Administrator</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={isInviting}
+                  className="bg-brand-navy text-white font-semibold text-sm rounded-lg hover:bg-black transition-all shadow-md active:scale-95 px-4 py-2.5 disabled:opacity-50 flex items-center justify-center"
+                >
+                  {isInviting ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Authorising...
+                    </span>
+                  ) : "Authorise Access"}
+                </button>
+              </div>
+
+              {inviteError && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold animate-shake">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  {inviteError}
+                </div>
+              )}
+
+              {inviteSuccess && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg text-xs font-bold animate-fade-in">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                  Staff member added successfully!
+                </div>
+              )}
             </form>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

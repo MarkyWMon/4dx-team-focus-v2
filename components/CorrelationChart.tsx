@@ -41,9 +41,52 @@ const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> 
         });
     }, [tickets, commitments, currentWeekId]);
 
-    // Calculate max values for scaling
-    const maxTickets = Math.max(...chartData.map(d => d.tickets)) * 1.2;
-    const maxWins = Math.max(...chartData.map(d => d.wins)) * 1.2;
+    // Calculate max values for scaling (guard against 0/NaN)
+    const rawMaxTickets = Math.max(...chartData.map(d => d.tickets), 1);
+    const rawMaxWins = Math.max(...chartData.map(d => d.wins), 1);
+    const maxTickets = rawMaxTickets * 1.2;
+    const maxWins = rawMaxWins * 1.2;
+
+    // Dynamic insight calculation
+    const insight = useMemo(() => {
+        const firstWeek = chartData[0];
+        const lastWeek = chartData[chartData.length - 1];
+
+        if (!firstWeek || !lastWeek) return { text: 'Not enough data yet to generate insights.', hasChange: false };
+
+        const ticketChange = firstWeek.tickets > 0
+            ? ((lastWeek.tickets - firstWeek.tickets) / firstWeek.tickets * 100)
+            : 0;
+        const winsChange = firstWeek.wins > 0
+            ? ((lastWeek.wins - firstWeek.wins) / firstWeek.wins * 100)
+            : lastWeek.wins > 0 ? 100 : 0;
+
+        const totalWins = chartData.reduce((s, d) => s + d.wins, 0);
+        const totalTickets = chartData.reduce((s, d) => s + d.tickets, 0);
+
+        if (totalWins === 0 && totalTickets === 0) {
+            return { text: 'No ticket or commitment data recorded yet. Start logging to see impact trends.', hasChange: false };
+        }
+
+        if (totalWins === 0) {
+            return { text: `${totalTickets} tickets logged over 6 weeks with no strategic wins recorded yet. Start completing commitments to see the correlation.`, hasChange: false };
+        }
+
+        // Determine correlation direction
+        const isInverse = ticketChange < 0 && winsChange > 0; // Wins up, tickets down = good
+        const isConcerning = ticketChange > 0 && winsChange <= 0; // Tickets up, wins flat/down = bad
+
+        let text = '';
+        if (isInverse) {
+            text = `As strategic wins ${winsChange > 0 ? 'increased' : 'changed'} by ${Math.abs(Math.round(winsChange))}%, reactive ticket volume ${ticketChange < 0 ? 'decreased' : 'increased'} by ${Math.abs(Math.round(ticketChange))}% — a strong leading indicator.`;
+        } else if (isConcerning) {
+            text = `Ticket volume rose ${Math.abs(Math.round(ticketChange))}% while strategic wins ${winsChange === 0 ? 'stayed flat' : 'declined'}. Increasing proactive commitments could help reduce reactive load.`;
+        } else {
+            text = `${totalWins} strategic wins and ${totalTickets} tickets across 6 weeks. Consistent commitment completion drives long-term ticket reduction.`;
+        }
+
+        return { text, ticketChange, winsChange, hasChange: true, isInverse, isConcerning };
+    }, [chartData]);
 
     return (
         <div className={`bg-white rounded-2xl shadow-soft border border-slate-100/60 ${compact ? 'p-0 border-0 shadow-none bg-transparent' : 'p-6'}`}>
@@ -110,7 +153,7 @@ const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> 
                             {/* Wins Line Point (Visualized as Bar for easier CSS-only implementation) */}
                             <div
                                 className="w-2 bg-brand-green rounded-t-full relative shadow-lg shadow-brand-green/20"
-                                style={{ height: `${(d.wins / maxWins) * 80}%` }}
+                                style={{ height: `${(d.wins / maxWins) * 100}%` }}
                             >
                             </div>
                         </div>
@@ -132,7 +175,7 @@ const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> 
                     <div>
                         <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wide">Insight</h4>
                         <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                            As proactive wins increased by <span className="font-bold text-brand-green">14%</span> over 6 weeks, ticket volume dropped by <span className="font-bold text-brand-navy">18%</span>.
+                            {insight.text}
                         </p>
                     </div>
                 </div>

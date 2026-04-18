@@ -31,19 +31,23 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   // Calculate WIG Score from Survey Data
   const currentScore = useMemo(() => {
-    if (!surveys || surveys.length === 0) return wigConfig?.currentValue || 70;
-
+    console.log(`[Dashboard] Surveys available: ${surveys.length}`);
     let filteredSurveys = surveys;
     if (surveyStartDate) {
       filteredSurveys = surveys.filter(s => s.date >= surveyStartDate);
+      console.log(`[Dashboard] Filtering by date >= ${new Date(surveyStartDate).toLocaleDateString()}. Matches: ${filteredSurveys.length}/${surveys.length}`);
     }
 
-    if (filteredSurveys.length === 0) return wigConfig?.currentValue || 70;
+    if (filteredSurveys.length === 0) {
+      console.log("[Dashboard] Result: No data after filtering. Falling back to default.");
+      return wigConfig?.currentValue || 70;
+    }
 
-    // Calculate average of filtered surveys
     const total = filteredSurveys.reduce((sum, s) => sum + s.average, 0);
-    const avg = total / filteredSurveys.length; // Out of 10
-    return Math.round(avg * 10); // Convert to Percentage (0-100)
+    const avg = total / filteredSurveys.length;
+    const result = Math.round(avg * 10);
+    console.log(`[Dashboard] Success: Calculated ${result}% from ${filteredSurveys.length} surveys (Avg: ${avg.toFixed(2)})`);
+    return result;
   }, [surveys, wigConfig, surveyStartDate]);
 
   const activeMembers = members.filter(m => m.id); // Valid members have an ID
@@ -183,6 +187,13 @@ const Dashboard: React.FC<DashboardProps> = ({
               <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">
                 {wigConfig?.title || "Strategy Goal"}
               </h2>
+              {isManager && (
+                <div className="flex gap-2 mt-2">
+                  <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded uppercase tracking-tighter">
+                    Surveys: {surveys.length} | Start: {surveyStartDate ? new Date(surveyStartDate).toLocaleDateString() : 'None'}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="text-right">
               <div className="flex flex-col items-end">

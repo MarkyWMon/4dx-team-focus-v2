@@ -60,6 +60,8 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
 
         surveys.filter(s => s.date >= startTimestamp).forEach(s => {
             const name = s.tech || "Unknown";
+            // Skip entries where tech looks like a ticket number (legacy bad data from parsing)
+            if (/^\d+$/.test(name)) return;
             if (!techs[name]) techs[name] = { count: 0, total: 0, q1: 0, q2: 0, q3: 0 };
             techs[name].count++;
             techs[name].total += s.average;

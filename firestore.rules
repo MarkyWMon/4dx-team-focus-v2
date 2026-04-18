@@ -24,8 +24,9 @@ service cloud.firestore {
       allow read: if request.auth != null && (request.auth.uid == memberId || isManager());
       allow list: if isManager();
       
-      // CREATE: Allow any auth user to create their OWN record (Bootstrapping)
-      allow create: if request.auth != null && request.auth.uid == memberId;
+      // CREATE: Allow any auth user to create their OWN record (Bootstrapping), 
+      // or Managers/Admins to invite others.
+      allow create: if request.auth != null && (request.auth.uid == memberId || isManager());
       
       // UPDATE: Allow owner to update their lastLogin/profile, or Admins to manage others
       allow update: if request.auth != null && (request.auth.uid == memberId || isAdmin());
@@ -71,7 +72,7 @@ service cloud.firestore {
     // --- Tickets ---
     match /tickets/{ticketId} {
       allow read: if request.auth != null;
-      allow write: if isManager();
+      allow write: if request.auth != null;
     }
 
     // --- Shared Daily Inspirations (AI Cache) ---
