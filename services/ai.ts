@@ -4,10 +4,9 @@ import { AISuggestion, CommitmentCheckResult, LeadMeasureDefinition, CommitmentT
 import { getTemplateCategoryLabel } from '../data/commitmentTemplates';
 
 const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-8b',
 ] as const;
 const RATE_LIMIT_COOLDOWN_MS = 60_000;
 let rateLimitCooldownUntil = 0;
