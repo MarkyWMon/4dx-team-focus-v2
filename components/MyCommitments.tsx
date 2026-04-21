@@ -271,25 +271,9 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     }
   };
 
-  // Debounced Auto-Check
-  useEffect(() => {
-    if (!newCommitment || newCommitment.length < 20) {
-      setCheckResult(null);
-      return;
-    }
-
-    if (isChecking) return;
-    if (newCommitment.trim() === lastCheckedTextRef.current) return;
-
-    const timer = setTimeout(() => {
-      handleCheckCommitment();
-    }, 4000); // 4 second delay to wait for typing to pause
-
-    return () => clearTimeout(timer);
-  }, [newCommitment]);
 
   const handleCheckCommitment = async () => {
-    if (!newCommitment.trim() || newCommitment.length < 20) return;
+    if (!newCommitment.trim() || newCommitment.length < 10) return;
     lastCheckedTextRef.current = newCommitment.trim();
 
     // Validate we haven't already checked this exact text (simple cache)
