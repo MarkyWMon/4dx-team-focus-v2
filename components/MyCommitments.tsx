@@ -50,6 +50,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const [checkResult, setCheckResult] = useState<CommitmentCheckResult | null>(null);
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
 
   // Template Library State
   const [showTemplates, setShowTemplates] = useState(false);
@@ -64,11 +65,13 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const [proofStatus, setProofStatus] = useState<CommitmentStatus>('completed');
   const [proofLeadMeasure, setProofLeadMeasure] = useState<{ id: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastCheckedTextRef = useRef<string>('');
 
   // Validation Modal State (for custom commitments)
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [pendingCommitment, setPendingCommitment] = useState('');
   const [isValidating, setIsValidating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const leadMeasures = wigConfig?.leadMeasures || [];
 
@@ -83,6 +86,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     setShowValidationModal(true);
     setIsValidating(true);
     setCheckResult(null);
+    setValidationError(null);
 
     try {
       // Get teammate commitments for overlap check
@@ -102,6 +106,10 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
       );
 
       setCheckResult(result);
+
+      if (!result) {
+        setValidationError('Unable to validate alignment right now. You can add this commitment without AI validation or select a Lead Measure manually.');
+      }
 
       // If aligned, auto-submit
       if (result?.isAligned && result.linkedLeadMeasureId) {
@@ -174,9 +182,6 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     return measure ? measure.currentCount >= measure.target : false;
   };
 
-  // Get measures that still have capacity
-  const availableMeasures = measureCommitmentCounts.filter(m => m.currentCount < m.target);
-
   // Wrapper to enforce capacity before adding
   const safeOnAdd = (desc: string, leadMeasureId?: string, leadMeasureName?: string): boolean => {
     const measureKey = leadMeasureId || leadMeasureName;
@@ -203,6 +208,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
       return;
     }
 
+    setSuggestionError(null);
     setIsGenerating(true);
 
     // Create a date key for the cache (e.g., "2024-01-20")
@@ -232,6 +238,9 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
             setSuggestions(results);
             setShowSuggestions(true);
             await StorageService.saveDailyInspirations(dateKey, results);
+          } else {
+            setSuggestionError('No suggestions available yet. AI may be unavailable or not configured.');
+            setShowSuggestions(true);
           }
         }
       } else {
@@ -248,10 +257,15 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
           setShowSuggestions(true);
           // 3. Save to cache for others
           await StorageService.saveDailyInspirations(dateKey, results);
+        } else {
+          setSuggestionError('No suggestions available yet. AI may be unavailable or not configured.');
+          setShowSuggestions(true);
         }
       }
     } catch (e) {
       console.error(e);
+      setSuggestionError('Unable to generate suggestions at the moment. Please try again later.');
+      setShowSuggestions(true);
     } finally {
       setIsGenerating(false);
     }
@@ -259,24 +273,24 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
 
   // Debounced Auto-Check
   useEffect(() => {
-    // specific check to avoid checking empty or very short strings
-    if (!newCommitment || newCommitment.length < 10) {
+    if (!newCommitment || newCommitment.length < 20) {
       setCheckResult(null);
       return;
     }
 
-    // Don't check if we are already checking
     if (isChecking) return;
+    if (newCommitment.trim() === lastCheckedTextRef.current) return;
 
     const timer = setTimeout(() => {
       handleCheckCommitment();
-    }, 2000); // 2 second delay to wait for typing to pause
+    }, 4000); // 4 second delay to wait for typing to pause
 
     return () => clearTimeout(timer);
   }, [newCommitment]);
 
   const handleCheckCommitment = async () => {
-    if (!newCommitment.trim() || newCommitment.length < 10) return;
+    if (!newCommitment.trim() || newCommitment.length < 20) return;
+    lastCheckedTextRef.current = newCommitment.trim();
 
     // Validate we haven't already checked this exact text (simple cache)
     // Note: robust implementations might use a proper cache map
@@ -584,7 +598,55 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                   )}
                 </>
               ) : (
-                <p className="text-slate-500 text-sm">No validation result available.</p>
+                <>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <p className="text-amber-800 text-sm font-medium">
+                      {validationError || 'No validation result available right now.'}
+                    </p>
+                  </div>
+                  {leadMeasures.length > 0 && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <p className="text-slate-600 text-xs font-semibold mb-3">Select a Lead Measure manually:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {leadMeasures.map(m => {
+                          const measureData = measureCommitmentCounts.find(mc => mc.id === m.id || mc.name === m.name);
+                          const isAtCapacity = measureData ? measureData.currentCount >= measureData.target : false;
+                          return (
+                            <button
+                              key={m.id}
+                              disabled={isAtCapacity}
+                              onClick={() => {
+                                safeOnAdd(pendingCommitment, m.id, m.name);
+                                setShowValidationModal(false);
+                                setPendingCommitment('');
+                                setCheckResult(null);
+                              }}
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${isAtCapacity
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-slate-100 hover:bg-brand-navy hover:text-white'
+                                }`}
+                            >
+                              {m.name} {isAtCapacity && '(Full)'}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        safeOnAdd(pendingCommitment);
+                        setShowValidationModal(false);
+                        setPendingCommitment('');
+                        setCheckResult(null);
+                      }}
+                      className="px-4 py-2 text-slate-600 hover:text-slate-900 text-xs font-semibold transition-colors"
+                    >
+                      Add without validation
+                    </button>
+                  </div>
+                </>
               )}
             </div>
 
@@ -804,26 +866,32 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                 <button onClick={() => setShowSuggestions(false)} className="text-xs text-gray-500 hover:text-gray-800 bg-white px-2 py-1 rounded border">Close</button>
               </div>
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                {suggestions.map((s) => (
-                  <div key={s.id} className={`bg-white p-3 rounded-lg border border-blue-100 shadow-sm transition-all duration-300 ${s.isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
-                    <div className="flex gap-2 items-center">
-                      <div className="flex-grow">
-                        <div className="flex items-center gap-2 mb-1">
-                          {s.leadMeasureName && (
-                            <span className="text-[8px] font-black uppercase text-brand-navy bg-slate-100 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">
-                              {s.leadMeasureName}
-                            </span>
-                          )}
-                          <p className="text-sm font-bold text-gray-800 leading-snug">
-                            {renderRichDescription(s.commitment)}
-                          </p>
-                        </div>
-                      </div>
-                      <button onClick={() => addSuggestion(s.id)} disabled={isFull} className="px-3 py-1 bg-brand-navy text-white text-xs font-bold rounded hover:bg-opacity-90 disabled:opacity-50">Add</button>
-                    </div>
-                    <p className="text-[11px] text-gray-500 italic mt-1">{s.rationale}</p>
+                {suggestions.length === 0 ? (
+                  <div className="bg-white border border-blue-100 rounded-lg p-4 text-sm text-slate-600">
+                    {suggestionError || 'No suggestions available yet.'}
                   </div>
-                ))}
+                ) : (
+                  suggestions.map((s) => (
+                    <div key={s.id} className={`bg-white p-3 rounded-lg border border-blue-100 shadow-sm transition-all duration-300 ${s.isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-grow">
+                          <div className="flex items-center gap-2 mb-1">
+                            {s.leadMeasureName && (
+                              <span className="text-[8px] font-black uppercase text-brand-navy bg-slate-100 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">
+                                {s.leadMeasureName}
+                              </span>
+                            )}
+                            <p className="text-sm font-bold text-gray-800 leading-snug">
+                              {renderRichDescription(s.commitment)}
+                            </p>
+                          </div>
+                        </div>
+                        <button onClick={() => addSuggestion(s.id)} disabled={isFull} className="px-3 py-1 bg-brand-navy text-white text-xs font-bold rounded hover:bg-opacity-90 disabled:opacity-50">Add</button>
+                      </div>
+                      <p className="text-[11px] text-gray-500 italic mt-1">{s.rationale}</p>
+                    </div>
+                  ))
+                )}
               </div>
               <div className="mt-3 text-center border-t border-blue-100 pt-2">
                 <p className="text-[10px] text-gray-400 italic">
@@ -854,7 +922,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                     <input
                       type="text"
                       value={newCommitment}
-                      onChange={(e) => { setNewCommitment(e.target.value); setCheckResult(null); }}
+                      onChange={(e) => { setNewCommitment(e.target.value); setCheckResult(null); if (!e.target.value) lastCheckedTextRef.current = ''; }}
                       placeholder={isFull ? "Max commitments reached" : "I commit to..."}
                       disabled={!canAdd}
                       className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-brand-navy focus:border-brand-navy border p-4 pr-24 disabled:bg-gray-50 text-gray-900 transition-all"
