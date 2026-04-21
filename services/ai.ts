@@ -45,8 +45,7 @@ function isRateLimitError(e: any): boolean {
  * If all retries fail, tries falling back to the next available model.
  */
 async function withRetryAndFallback<T>(
-  fn: (model: string) => Promise<T>,
-  maxRetries = 3
+  fn: (model: string) => Promise<T>
 ): Promise<T> {
   if (isInRateLimitCooldown()) {
     const remaining = Math.ceil(getCooldownRemainingMs() / 1000);
@@ -55,22 +54,14 @@ async function withRetryAndFallback<T>(
   let lastError: any;
 
   for (const model of GEMINI_MODELS) {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await fn(model);
-      } catch (e: any) {
-        lastError = e;
-        if (!isRateLimitError(e)) {
-          throw e; // Non-rate-limit error, throw immediately
-        }
-        if (attempt === maxRetries) {
-          console.warn(`🤖 AI: Model ${model} rate limited after ${attempt + 1} attempts. Trying fallback...`);
-          break; // Try next model
-        }
-        const delayMs = Math.pow(2, attempt + 2) * 1000; // 4s, 8s, 16s
-        console.warn(`🤖 AI: Rate limited (429) on ${model}. Retrying in ${delayMs / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+    try {
+      return await fn(model);
+    } catch (e: any) {
+      lastError = e;
+      if (!isRateLimitError(e)) {
+        throw e; // Non-rate-limit error, throw immediately
       }
+      console.warn(`🤖 AI: Rate limited (429) on ${model}. Trying next model...`);
     }
   }
 
