@@ -227,18 +227,25 @@ export const AIService = {
         1. ALIGNMENT CHECK (CRITICAL): Does this commitment directly support ONE of the Lead Measures above?
            - If YES: Set isAligned: true and specify which measure.
            - If NO: Set isAligned: false. The commitment CANNOT be submitted without alignment.
-        
+
         2. LEVERAGE CHECK: Is it proactive (high leverage) vs reactive (low leverage)?
-        
+
         3. OVERLAP CHECK: Is a colleague already doing something very similar this week?
-        
+
         4. REDUNDANCY CHECK: Has the user done this exact thing recently?
+
+        5. REFRAME (ALWAYS REQUIRED): Write a suggestedAlternative that takes the user's original intent
+           and reframes it as a specific, actionable commitment directly tied to one of the Lead Measures.
+           - Preserve the core activity where possible (e.g. if they said "fix printers", reframe as a proactive
+             protocol that addresses printer reliability as a lead measure lever).
+           - The reframe must be concrete and measurable, not vague.
+           - Even if the commitment IS aligned, still suggest a sharper version if possible.
 
         RULES:
         - A commitment MUST link to a Lead Measure to be valid.
-        - If unaligned, provide a suggestedAlternative that IS aligned.
+        - suggestedAlternative is ALWAYS required — never return null or empty for this field.
         - Use British English (e.g., "programme", "centre").
-        
+
         RETURN JSON ONLY:
         {
           "isEffective": boolean,
@@ -246,8 +253,8 @@ export const AIService = {
           "linkedLeadMeasureId": "The ID from the measures list, or null",
           "linkedLeadMeasureName": "The name from the measures list, or null",
           "score": number (0-10),
-          "feedback": "Concise coaching advice",
-          "suggestedAlternative": "A version that IS aligned to a Lead Measure",
+          "feedback": "Concise coaching advice explaining why this commitment is or isn't aligned, and what makes the suggested alternative stronger",
+          "suggestedAlternative": "A reframed version of the user's commitment that IS aligned to a specific Lead Measure",
           "isRedundant": boolean,
           "isOverlapping": boolean,
           "overlapWarning": "Message if overlapping with teammate"
