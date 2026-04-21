@@ -3,6 +3,82 @@ import { StorageService } from './storage';
 import { AISuggestion, CommitmentCheckResult, LeadMeasureDefinition, CommitmentTemplate } from '../types';
 import { getTemplateCategoryLabel } from '../data/commitmentTemplates';
 
+const GEMINI_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash',
+  'gemini-1.5-flash-8b',
+] as const;
+const RATE_LIMIT_COOLDOWN_MS = 60_000;
+let rateLimitCooldownUntil = 0;
+
+function getCooldownRemainingMs(): number {
+  return Math.max(0, rateLimitCooldownUntil - Date.now());
+}
+
+function isInRateLimitCooldown(): boolean {
+  return getCooldownRemainingMs() > 0;
+}
+
+function startRateLimitCooldown(): void {
+  rateLimitCooldownUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+}
+
+/**
+ * Check if an error is a rate limit (429) error from the Gemini API.
+ */
+function isRateLimitError(e: any): boolean {
+  const msg = String(e?.message || e?.error?.message || '');
+  return (
+    msg.includes('429') ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('rate') ||
+    msg.includes('quota') ||
+    e?.status === 429 ||
+    e?.error?.code === 429
+  );
+}
+
+/**
+ * Retry wrapper with exponential backoff for Gemini API rate limits (429 errors).
+ * Retries up to 3 times with increasing delays: 4s, 8s, 16s.
+ * If all retries fail, tries falling back to the next available model.
+ */
+async function withRetryAndFallback<T>(
+  fn: (model: string) => Promise<T>,
+  maxRetries = 3
+): Promise<T> {
+  if (isInRateLimitCooldown()) {
+    const remaining = Math.ceil(getCooldownRemainingMs() / 1000);
+    throw new Error(`AI rate limit cooldown active. Try again in ${remaining}s.`);
+  }
+  let lastError: any;
+
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn(model);
+      } catch (e: any) {
+        lastError = e;
+        if (!isRateLimitError(e)) {
+          throw e; // Non-rate-limit error, throw immediately
+        }
+        if (attempt === maxRetries) {
+          console.warn(`🤖 AI: Model ${model} rate limited after ${attempt + 1} attempts. Trying fallback...`);
+          break; // Try next model
+        }
+        const delayMs = Math.pow(2, attempt + 2) * 1000; // 4s, 8s, 16s
+        console.warn(`🤖 AI: Rate limited (429) on ${model}. Retrying in ${delayMs / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  // All models exhausted — start cooldown to prevent hammering
+  startRateLimitCooldown();
+  throw lastError;
+}
+
 export const AIService = {
   /**
    * Generates high-leverage 4DX commitments based on dynamic team context.
@@ -91,11 +167,11 @@ export const AIService = {
       const ai = new GoogleGenAI({ apiKey });
 
       const startTime = Date.now();
-      const result = await ai.models.generateContent({
-        model: 'models/gemini-2.0-flash',
+      const result = await withRetryAndFallback((model) => ai.models.generateContent({
+        model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { responseMimeType: "application/json" }
-      });
+      }));
 
       console.log(`🤖 AI: Model response received in ${Date.now() - startTime}ms`);
 
@@ -195,13 +271,13 @@ export const AIService = {
         return null;
       }
       const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'models/gemini-2.0-flash',
+      const response = await withRetryAndFallback((model) => ai.models.generateContent({
+        model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           responseMimeType: "application/json"
         }
-      });
+      }));
 
       const resultText = response.text?.trim() || '{}';
       console.log("🤖 AI: Alignment check complete.");
@@ -261,11 +337,11 @@ export const AIService = {
       console.log("🤖 AI: Designing Strategy Playbook...");
       const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
       const ai = new GoogleGenAI({ apiKey });
-      const result = await ai.models.generateContent({
-        model: 'models/gemini-2.0-flash',
+      const result = await withRetryAndFallback((model) => ai.models.generateContent({
+        model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: { responseMimeType: "application/json" }
-      });
+      }));
 
       let text = '';
       try {
@@ -297,48 +373,65 @@ export const AIService = {
       if (completed.length === 0) return "No commitments completed this week yet. Let's get moving!";
 
       const prompt = `
-        You are a reserved and professional Team Lead summarizing the week's achievements for an IT Support Team.
+        You are a team manager writing a brief weekly commitment review for an IT Support Team.
         
         WEEK ID: ${weekId}
         
-        COMPLETED COMMITMENTS:
+        ALL COMMITMENTS SET THIS WEEK:
+        ${commitments.map(c => `- ${c.description} (by ${c.userName || 'Team Member'}) [Status: ${c.status}]`).join('\n')}
+        
+        COMPLETED:
         ${completed.map(c => `- ${c.description} (by ${c.userName || 'Team Member'})`).join('\n')}
+        
+        STATS: ${completed.length} of ${commitments.length} commitments completed.
 
         TASK:
-        Write a short, factual summary (max 3 sentences) of what the team accomplished this week.
-        - List specific wins (e.g. "Resolution of wifi connectivity issues", "Update of 5 technical guides").
-        - Mention specific people if they were responsible for a notable task, but keep it understated.
-        - Tone: Dry, factual, and very British. Avoid being upbeat, effusive, or using exclamation marks. Focus on performance and strategic alignment.
+        Write a short, matter-of-fact summary (3-4 sentences) reviewing the team's commitments this week.
+        - State what was committed to and what was delivered.
+        - Note the completion rate (${completed.length}/${commitments.length}).
+        - If some were missed or partial, note that plainly without judgement.
+        - Do not be enthusiastic, motivational, or patronising. Do not use exclamation marks.
+        - Be plain and direct, like a status report.
         - British English.
         - No markdown formatting, just plain text.
       `;
 
       console.log("🤖 AI: Generating Weekly Summary...");
       const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
+      if (!apiKey) {
+        console.warn('AI: API key not configured. Cannot generate summary.');
+        return "Unable to generate summary — AI API key not configured.";
+      }
       const ai = new GoogleGenAI({ apiKey });
-      const result = await ai.models.generateContent({
-        model: 'models/gemini-2.0-flash',
+      const result = await withRetryAndFallback((model) => ai.models.generateContent({
+        model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      });
+      }));
 
       console.log("🤖 AI: Model response received.");
 
-      let text = '';
-      try {
-        // Robust extraction matching generateCommitmentSuggestions
-        text = result.response?.text?.() || (result as any).text || '';
-        if (!text && result.response?.candidates?.[0]?.content?.parts?.[0]?.text) {
-          text = result.response.candidates[0].content.parts[0].text;
+      let text = (result as any).text || '';
+      if (!text) {
+        try {
+          // Fallback: extract from candidates
+          const candidates = (result as any)?.candidates;
+          if (candidates?.[0]?.content?.parts?.[0]?.text) {
+            text = candidates[0].content.parts[0].text;
+          }
+        } catch (e) {
+          console.warn("AI: Text extraction failed in summary generation", e);
         }
-      } catch (e) {
-        console.warn("AI: Standard text extraction failed in summary generation", e);
       }
 
       const finalSummary = text.trim() || "Great work team! (AI generation produced empty result)";
       console.log("🤖 AI: Final Summary:", finalSummary);
       return finalSummary;
-    } catch (e) {
+    } catch (e: any) {
       console.error("AI Summary Gen failed:", e);
+      const isRateLimit = e?.message?.includes('429') || e?.message?.includes('RESOURCE_EXHAUSTED');
+      if (isRateLimit) {
+        return "Unable to generate summary at this time. Rate limit reached — please try again in a few seconds.";
+      }
       return "Unable to generate summary at this time.";
     }
   }
