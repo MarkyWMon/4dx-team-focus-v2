@@ -12,6 +12,14 @@ export default defineConfig(({ mode }) => {
         'Cross-Origin-Opener-Policy': 'unsafe-none',
         'Cross-Origin-Embedder-Policy': 'unsafe-none',
       },
+      proxy: {
+        '/api/whd-proxy': {
+          target: 'https://whd-proxy-1014267640430.us-west1.run.app',
+          changeOrigin: true,
+          rewrite: (path: string) => path.replace(/^\/api\/whd-proxy/, ''),
+          followRedirects: true,
+        },
+      },
     },
     plugins: [react()],
     define: {

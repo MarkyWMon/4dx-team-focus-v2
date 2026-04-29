@@ -48,10 +48,24 @@ export const WHDService = {
   },
 
   fetchAndSync: async (): Promise<Ticket[]> => {
-    const endpoint = StorageService.getProxyUrl();
+    const configuredUrl = StorageService.getProxyUrl();
     
-    if (!endpoint) {
+    if (!configuredUrl) {
       throw new Error("Helpdesk Proxy URL is not configured.");
+    }
+
+    // In development, route through Vite proxy to avoid CORS issues
+    let endpoint = configuredUrl;
+    let fetchMode: RequestMode = 'cors';
+    if (import.meta.env.DEV) {
+      // Extract the path/query from the configured URL and route through Vite proxy
+      try {
+        const url = new URL(configuredUrl);
+        endpoint = `/api/whd-proxy${url.pathname}${url.search}`;
+        fetchMode = 'same-origin'; // Same-origin since Vite proxy handles CORS
+      } catch {
+        // If URL parsing fails, use as-is
+      }
     }
 
     const controller = new AbortController();
@@ -60,7 +74,7 @@ export const WHDService = {
     try {
       const response = await fetch(endpoint, {
         method: 'GET',
-        mode: 'cors',
+        mode: fetchMode,
         headers: { 'Accept': 'application/json' },
         signal: controller.signal
       });

@@ -1,5 +1,5 @@
 
-import { TeamMember, Commitment, LoginLog, Ticket, ChangeRequest, CategoryInsight, LeadMeasureLog, CommitmentStatus, WIGSession, AISuggestion, CommitmentTemplate, WIGConfig, BrandingConfig, DEFAULT_BRANDING } from '../types';
+import { TeamMember, Commitment, LoginLog, Ticket, ChangeRequest, CategoryInsight, LeadMeasureLog, CommitmentStatus, WIGSession, AISuggestion, CommitmentTemplate, WIGConfig, BrandingConfig, DEFAULT_BRANDING, Achievement, ActivityEvent } from '../types';
 import { db, auth } from './firebase';
 import { GamificationService } from './gamification';
 import {
@@ -19,6 +19,69 @@ import {
 
 // Provisioning lock to prevent concurrent user creation
 let isProvisioning = false;
+
+/**
+ * Deduplicates an array of TeamMembers by email.
+ * For each unique email, keeps the "best" record:
+ *  1. Real Firebase UID over pending-* IDs
+ *  2. Higher role priority (ADMIN > MANAGER > STAFF)
+ * Gamification data (score, streak, etc.) is merged by taking the maximum values.
+ */
+const deduplicateMembers = (members: TeamMember[]): TeamMember[] => {
+  const emailMap = new Map<string, TeamMember>();
+  const roleOrder: Record<string, number> = { 'ADMIN': 0, 'MANAGER': 1, 'STAFF': 2 };
+
+  for (const m of members) {
+    const key = (m.email || '').toLowerCase().trim();
+    if (!key) continue; // skip records without email
+
+    const existing = emailMap.get(key);
+    if (!existing) {
+      emailMap.set(key, { ...m });
+      continue;
+    }
+
+    const mIsPending = m.id.startsWith('pending-');
+    const eIsPending = existing.id.startsWith('pending-');
+
+    // Decide which record is canonical
+    let canonical = existing;
+    let other = m;
+    let replace = false;
+
+    if (mIsPending && !eIsPending) {
+      // Keep existing (real UID) — don't replace
+    } else if (!mIsPending && eIsPending) {
+      // Prefer this one (real UID over pending)
+      replace = true;
+    } else {
+      // Both real or both pending — prefer higher role
+      if ((roleOrder[m.role] ?? 99) < (roleOrder[existing.role] ?? 99)) {
+        replace = true;
+      }
+    }
+
+    if (replace) {
+      canonical = m;
+      other = existing;
+    }
+
+    // Merge gamification data — take the maximum values
+    const merged = { ...canonical };
+    merged.score = Math.max(canonical.score || 0, other.score || 0);
+    merged.streak = Math.max(canonical.streak || 0, other.streak || 0);
+    merged.longestStreak = Math.max(canonical.longestStreak || 0, other.longestStreak || 0);
+    
+    // Merge achievements (union)
+    const achieveMap = new Map<string, Achievement>();
+    [...(canonical.achievements || []), ...(other.achievements || [])].forEach(a => achieveMap.set(a.id, a));
+    merged.achievements = Array.from(achieveMap.values());
+
+    emailMap.set(key, merged);
+  }
+
+  return Array.from(emailMap.values());
+};
 
 const STORAGE_KEYS = {
   MEMBERS: '4dx_members',
@@ -107,14 +170,14 @@ export const StorageService = {
   },
 
   subscribeToMembers: (callback: (members: TeamMember[]) => void) => {
-    // 1. Load local cache immediately
-    const cached = loadLocal<TeamMember[]>(STORAGE_KEYS.MEMBERS, []);
+    // 1. Load local cache immediately (deduplicated)
+    const cached = deduplicateMembers(loadLocal<TeamMember[]>(STORAGE_KEYS.MEMBERS, []));
     if (cached.length > 0) callback(cached);
 
     return onSnapshot(collection(db, "members"),
       (snapshot) => {
-        const members = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as TeamMember));
-        // console.log('📥 Members subscription received update:', members.length);
+        const rawMembers = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as TeamMember));
+        const members = deduplicateMembers(rawMembers);
         saveLocal(STORAGE_KEYS.MEMBERS, members);
         callback(members);
       },
@@ -326,7 +389,7 @@ export const StorageService = {
       else if (data.status === 'partial') nextStatus = 'incomplete';
 
       // Update Commitment Status
-      await setDoc(ref, { status: nextStatus }, { merge: true });
+      await setDoc(ref, { status: nextStatus, updatedAt: Date.now() }, { merge: true });
 
       // Scoring: Calculate points based on whether this is the first completion of the week
       if ((prevStatus !== 'completed' && nextStatus === 'completed') || (prevStatus === 'completed' && nextStatus !== 'completed')) {
@@ -444,6 +507,88 @@ export const StorageService = {
     await deleteDoc(doc(db, "members", id));
   },
 
+  /**
+   * One-time admin cleanup: Finds ALL duplicate members by email,
+   * merges gamification data, reassigns commitments, and deletes orphans.
+   * Returns a summary of what was done.
+   */
+  mergeAndCleanupMembers: async (): Promise<{ merged: number, commitmentsMoved: number }> => {
+    let merged = 0;
+    let commitmentsMoved = 0;
+
+    try {
+      // 1. Get ALL member records
+      const snap = await getDocs(collection(db, "members"));
+      const allMembers = snap.docs.map(d => ({ ...d.data(), id: d.id } as TeamMember));
+
+      // 2. Group by email
+      const emailGroups = new Map<string, TeamMember[]>();
+      for (const m of allMembers) {
+        const key = (m.email || '').toLowerCase().trim();
+        if (!key) continue;
+        const group = emailGroups.get(key) || [];
+        group.push(m);
+        emailGroups.set(key, group);
+      }
+
+      const roleOrder: Record<string, number> = { 'ADMIN': 0, 'MANAGER': 1, 'STAFF': 2 };
+
+      for (const [email, group] of emailGroups) {
+        if (group.length <= 1) continue; // No duplicates
+
+        // Sort: real UIDs first, then by role priority
+        group.sort((a, b) => {
+          const aPending = a.id.startsWith('pending-') ? 1 : 0;
+          const bPending = b.id.startsWith('pending-') ? 1 : 0;
+          if (aPending !== bPending) return aPending - bPending;
+          return (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99);
+        });
+
+        const canonical = group[0];
+        const orphans = group.slice(1);
+
+        // 3. Merge gamification data into canonical
+        const mergedData: Partial<TeamMember> = {
+          score: Math.max(...group.map(m => m.score || 0)),
+          streak: Math.max(...group.map(m => m.streak || 0)),
+          longestStreak: Math.max(...group.map(m => m.longestStreak || 0)),
+        };
+
+        // Merge achievements
+        const achieveMap = new Map<string, Achievement>();
+        group.forEach(m => (m.achievements || []).forEach(a => achieveMap.set(a.id, a)));
+        mergedData.achievements = Array.from(achieveMap.values());
+
+        await setDoc(doc(db, "members", canonical.id), mergedData, { merge: true });
+
+        // 4. Reassign commitments from orphan IDs to canonical ID
+        for (const orphan of orphans) {
+          const cQ = query(collection(db, "commitments"), where("memberId", "==", orphan.id));
+          const cSnap = await getDocs(cQ);
+          const batch = writeBatch(db);
+          cSnap.docs.forEach(d => {
+            batch.update(d.ref, { memberId: canonical.id });
+          });
+          if (cSnap.size > 0) {
+            await batch.commit();
+            commitmentsMoved += cSnap.size;
+            console.log(`Moved ${cSnap.size} commitments from ${orphan.id} → ${canonical.id}`);
+          }
+
+          // 5. Delete the orphan member record
+          await deleteDoc(doc(db, "members", orphan.id));
+          console.log(`Deleted duplicate member: ${orphan.id} (${orphan.name})`);
+          merged++;
+        }
+      }
+    } catch (e) {
+      console.error("Error during member merge cleanup:", e);
+      throw e;
+    }
+
+    return { merged, commitmentsMoved };
+  },
+
   subscribeToWIGConfig: (callback: (config: any) => void) => {
     return onSnapshot(doc(db, "settings", "wig_config"),
       (snapshot) => {
@@ -472,6 +617,7 @@ export const StorageService = {
   saveTickets: async (tickets: Ticket[]): Promise<void> => {
     // 1. Save locally first (instant UI update)
     saveLocal(STORAGE_KEYS.TICKETS, tickets);
+    saveLocal(STORAGE_KEYS.TICKETS + '_lastSync', Date.now());
 
     // 2. Save to Firestore in chunks (Batch Limit is 500)
     const chunkSize = 400; // Safe limit
@@ -509,6 +655,7 @@ export const StorageService = {
   },
 
   getTickets: (): Ticket[] => loadLocal<Ticket[]>(STORAGE_KEYS.TICKETS, []),
+  getTicketLastSync: (): number | null => loadLocal<number | null>(STORAGE_KEYS.TICKETS + '_lastSync', null),
   getCategoryInsights: (): CategoryInsight[] => [],
   resolveChangeRequest: async (id: string, action: 'approve' | 'reject'): Promise<void> => { },
   getLeadMeasureLogs: (measureId: string): LeadMeasureLog[] => [],
@@ -824,5 +971,52 @@ export const StorageService = {
       console.error("Error fetching summary:", e);
       return null;
     }
-  }
+  },
+
+  getActivityStream: async (memberId: string): Promise<ActivityEvent[]> => {
+    const events: ActivityEvent[] = [];
+
+    try {
+      // Fetch login events
+      const loginSnap = await getDocs(
+        query(collection(db, "audit_logs"), where("userId", "==", memberId))
+      );
+      loginSnap.docs.forEach(d => {
+        const data = d.data();
+        events.push({ type: 'login', timestamp: data.timestamp, description: 'Signed in' });
+      });
+    } catch (e) {
+      console.warn("Could not fetch audit_logs:", e);
+    }
+
+    try {
+      // Fetch commitments for this member
+      const commitSnap = await getDocs(
+        query(collection(db, "commitments"), where("memberId", "==", memberId))
+      );
+      commitSnap.docs.forEach(d => {
+        const c = d.data() as Commitment & { updatedAt?: number };
+        // "Set commitment" event at createdAt
+        events.push({
+          type: 'commitment_set',
+          timestamp: c.createdAt,
+          description: c.description,
+          weekId: c.weekId,
+        });
+        // "Status change" event when completed/partial
+        if (c.status !== 'incomplete' && c.updatedAt) {
+          events.push({
+            type: c.status === 'completed' ? 'commitment_completed' : 'commitment_partial',
+            timestamp: c.updatedAt,
+            description: c.description,
+            weekId: c.weekId,
+          });
+        }
+      });
+    } catch (e) {
+      console.warn("Could not fetch commitments for activity:", e);
+    }
+
+    return events.sort((a, b) => b.timestamp - a.timestamp);
+  },
 };

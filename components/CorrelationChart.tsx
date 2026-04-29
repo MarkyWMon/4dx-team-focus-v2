@@ -8,12 +8,23 @@ interface CorrelationChartProps {
     currentWeekId: string;
     wigConfig: WIGConfig | null;
     currentWins: number;
+    lastTicketSync?: number | null;
 }
 
-const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> = ({ tickets, commitments, currentWeekId, wigConfig, currentWins, compact = false }) => {
+const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> = ({ tickets, commitments, currentWeekId, wigConfig, currentWins, lastTicketSync, compact = false }) => {
+    // Calculate current week ticket count for the header metric
+    const currentWeekTicketCount = useMemo(() => {
+        return tickets.filter(t => t.weekId === currentWeekId).length;
+    }, [tickets, currentWeekId]);
+
+    // Calculate total tickets (all time) for display
+    const totalTicketCount = tickets.length;
+
+    // "isWinning" should compare commitment wins against a target, not WIG score %
+    const completedThisWeek = commitments.filter(c => c.weekId === currentWeekId && c.status === 'completed').length;
     const targetWins = wigConfig?.leadMeasureTarget || 8;
-    const isWinning = currentWins >= targetWins;
-    const remaining = targetWins - currentWins;
+    const isWinning = completedThisWeek >= targetWins;
+    const remaining = Math.max(0, targetWins - completedThisWeek);
 
     const chartData = useMemo(() => {
         // Generate last 6 weeks
@@ -88,6 +99,16 @@ const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> 
         return { text, ticketChange, winsChange, hasChange: true, isInverse, isConcerning };
     }, [chartData]);
 
+    // Calculate previous week ticket count for trend
+    const prevWeekTicketCount = useMemo(() => {
+        const prevWeekId = getPreviousWeekId(currentWeekId);
+        return tickets.filter(t => t.weekId === prevWeekId).length;
+    }, [tickets, currentWeekId]);
+
+    const ticketTrend = prevWeekTicketCount > 0
+        ? Math.round(((currentWeekTicketCount - prevWeekTicketCount) / prevWeekTicketCount) * 100)
+        : currentWeekTicketCount > 0 ? 100 : 0;
+
     return (
         <div className={`bg-white rounded-2xl shadow-soft border border-slate-100/60 ${compact ? 'p-0 border-0 shadow-none bg-transparent' : 'p-6'}`}>
             {!compact && (
@@ -105,15 +126,63 @@ const CorrelationChart: React.FC<CorrelationChartProps & { compact?: boolean }> 
                             </div>
                         </div>
                     </div>
-                    <div className="flex gap-4">
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-brand-navy"></div>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase font-display">Ticket Vol</span>
+                    <div className="flex flex-col items-end gap-2">
+                        <div className="flex gap-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-brand-navy"></div>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase font-display">Ticket Vol</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-brand-green"></div>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase font-display">Strategic Wins</span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-brand-green"></div>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase font-display">Strategic Wins</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Helpdesk Ticket Metrics Card */}
+            {!compact && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">This Week</p>
+                        <p className="text-2xl font-black text-brand-navy tracking-tight mt-1">{currentWeekTicketCount}</p>
+                        <p className="text-[9px] text-slate-400 mt-0.5">helpdesk tickets</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Trend</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-2xl font-black tracking-tight">{ticketTrend > 0 ? '+' : ''}{ticketTrend}%</span>
+                            {ticketTrend !== 0 && (
+                                <svg className={`w-4 h-4 ${ticketTrend > 0 ? 'text-rose-500' : 'text-emerald-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d={ticketTrend > 0 ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
+                                </svg>
+                            )}
                         </div>
+                        <p className="text-[9px] text-slate-400 mt-0.5">vs last week</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Volume</p>
+                        <p className="text-2xl font-black text-slate-700 tracking-tight mt-1">{totalTicketCount}</p>
+                        <p className="text-[9px] text-slate-400 mt-0.5">all-time tickets</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Last Refreshed</p>
+                        {lastTicketSync ? (
+                            <>
+                                <p className="text-sm font-black text-slate-700 tracking-tight mt-1">
+                                    {new Date(lastTicketSync).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                </p>
+                                <p className="text-[9px] text-slate-400 mt-0.5">
+                                    {new Date(lastTicketSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                            </>
+                        ) : (
+                            <div className="mt-1">
+                                <p className="text-xs font-bold text-amber-500">⚠ No sync</p>
+                                <p className="text-[9px] text-amber-400 mt-0.5">not yet refreshed</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
