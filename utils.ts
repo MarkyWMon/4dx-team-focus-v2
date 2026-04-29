@@ -1,7 +1,21 @@
+// Day of week the WIG cycle starts on (0=Sun..6=Sat). 1=Monday matches ISO weeks.
+let WIG_DAY_OF_WEEK = 1;
+
+export const setWigDayOfWeek = (day: number | undefined | null) => {
+  if (typeof day !== 'number' || day < 0 || day > 6) return;
+  WIG_DAY_OF_WEEK = day;
+};
+
+export const getWigDayOfWeek = () => WIG_DAY_OF_WEEK;
 
 export const getWeekId = (date: Date = new Date()): string => {
-  const target = new Date(date.valueOf());
-  const dayNr = (date.getDay() + 6) % 7;
+  // Shift the date back by (configured day - Monday) so the WIG day acts as the week start.
+  const shift = ((WIG_DAY_OF_WEEK - 1) + 7) % 7;
+  const adjusted = new Date(date.valueOf());
+  adjusted.setDate(adjusted.getDate() - shift);
+
+  const target = new Date(adjusted.valueOf());
+  const dayNr = (adjusted.getDay() + 6) % 7;
   target.setDate(target.getDate() - dayNr + 3);
   const firstThursday = target.valueOf();
   target.setMonth(0, 1);

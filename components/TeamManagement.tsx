@@ -1,16 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
-import { TeamMember, LeadMeasure, WIGConfig, CommitmentTemplate, CommitmentCategory, LeadMeasureDefinition, BrandingConfig, DEFAULT_BRANDING } from '../types';
+import { TeamMember, LeadMeasure, WIGConfig, CommitmentTemplate, CommitmentCategory, LeadMeasureDefinition, BrandingConfig, DEFAULT_BRANDING, Commitment } from '../types';
 import { StorageService } from '../services/storage';
 import { getTemplateCategoryLabel, getCategoryColor } from '../data/commitmentTemplates';
 import { AIService } from '../services/ai';
 import AITemplateDrafts from './AITemplateDrafts';
+import MemberDetailModal from './MemberDetailModal';
 
 interface TeamManagementProps {
   members: TeamMember[];
   currentUser: TeamMember;
   leadMeasures: LeadMeasure[];
   surveys: any[];
+  commitments: Commitment[];
   onAddMember: (name: string, email: string, role: 'ADMIN' | 'MANAGER' | 'STAFF') => void;
   onRemoveMember: (id: string) => void;
   onRefreshTickets: () => void;
@@ -24,9 +26,10 @@ interface TeamManagementProps {
   onUpdateBranding: (config: BrandingConfig) => void;
 }
 
-const TeamManagement: React.FC<TeamManagementProps> = ({
+  const TeamManagement: React.FC<TeamManagementProps> = ({
   members,
   currentUser,
+  commitments,
   onAddMember,
   onRemoveMember,
   wigConfig,
@@ -37,6 +40,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
 }) => {
   const [editingTemplate, setEditingTemplate] = useState<Partial<CommitmentTemplate> | null>(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'MANAGER' | 'STAFF'>('STAFF');
@@ -48,6 +52,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
   const [wigDescription, setWigDescription] = useState(wigConfig?.description || 'Survey Score > 4.8');
   const [wigType, setWigType] = useState<'number' | 'percentage'>(wigConfig?.metricType as any || 'number');
   const [leadMeasures, setLeadMeasures] = useState<LeadMeasureDefinition[]>(wigConfig?.leadMeasures || []);
+  const [wigDayOfWeek, setWigDayOfWeekState] = useState<number>(wigConfig?.wigDayOfWeek ?? 1);
   const [isWigSaved, setIsWigSaved] = useState(false);
 
   // AI Architect State
@@ -59,6 +64,8 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
   const [isInviting, setIsInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeResult, setMergeResult] = useState<{ merged: number; commitmentsMoved: number } | null>(null);
 
   // Branding State
   const [primaryColor, setPrimaryColor] = useState(branding?.primaryColor || '');
@@ -111,6 +118,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
       setWigDescription(wigConfig.description);
       setWigType(wigConfig.metricType as any || 'number');
       setLeadMeasures(wigConfig.leadMeasures || []);
+      setWigDayOfWeekState(wigConfig.wigDayOfWeek ?? 1);
     }
   }, [wigConfig]);
 
@@ -168,6 +176,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
       currentValue: Number(wigCurrent),
       targetValue: Number(wigTarget),
       leadMeasures,
+      wigDayOfWeek,
       currentScore: (wigConfig?.currentScore || 0),
       targetScore: (wigConfig?.targetScore || 0),
       startDate: wigConfig?.startDate || Date.now(),
@@ -297,10 +306,45 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
               )}
             </form>
 
+            <div className="flex items-center gap-3 mb-4">
+              <button
+                onClick={async () => {
+                  if (!confirm('This will merge duplicate member records in Firestore, reassign any commitments to the canonical record, and delete orphans. Continue?')) return;
+                  setIsMerging(true);
+                  setMergeResult(null);
+                  try {
+                    const result = await StorageService.mergeAndCleanupMembers();
+                    setMergeResult(result);
+                  } catch (e: any) {
+                    setInviteError('Merge failed: ' + e.message);
+                  } finally {
+                    setIsMerging(false);
+                  }
+                }}
+                disabled={isMerging}
+                className="text-[10px] font-black text-white bg-amber-500 hover:bg-amber-600 px-4 py-2 rounded-xl uppercase tracking-widest transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+              >
+                {isMerging ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Merging...
+                  </>
+                ) : '🔄 Merge Duplicates'}
+              </button>
+              {mergeResult && (
+                <span className="text-[10px] font-bold text-green-600 uppercase tracking-widest animate-fade-in">
+                  ✓ Merged {mergeResult.merged} duplicates, moved {mergeResult.commitmentsMoved} commitments
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {members.sort((a, b) => a.name.localeCompare(b.name)).map(m => (
                 <div key={m.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all group border-l-4 border-l-slate-100 hover:border-l-brand-navy">
-                  <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="flex items-center gap-3 overflow-hidden cursor-pointer" onClick={() => setSelectedMember(m)}>
                     <div className="h-9 w-9 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center font-semibold text-xs shadow-sm group-hover:bg-brand-navy group-hover:text-white transition-colors">
                       {m.avatar}
                     </div>
@@ -309,9 +353,14 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
                       <p className="text-[10px] font-semibold text-brand-red uppercase mt-1 tracking-wide">{m.role}</p>
                     </div>
                   </div>
-                  <button onClick={() => { if (confirm(`Revoke access for ${m.name}?`)) onRemoveMember(m.id); }} className="p-1.5 text-slate-300 hover:text-brand-red transition-all">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setSelectedMember(m)} className="p-1.5 text-slate-300 hover:text-brand-navy transition-all" title="View details">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    </button>
+                    <button onClick={() => { if (confirm(`Revoke access for ${m.name}?`)) onRemoveMember(m.id); }} className="p-1.5 text-slate-300 hover:text-brand-red transition-all">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -353,6 +402,34 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
                 <div>
                   <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">Current Value</label>
                   <input type="number" step="0.01" className="w-full p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:border-brand-navy" value={wigCurrent} onChange={(e) => setWigCurrent(Number(e.target.value))} />
+                </div>
+              </div>
+
+              <div className="mt-8 bg-white p-6 rounded-2xl border border-slate-100">
+                <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">WIG Meeting Day</label>
+                <p className="text-xs text-slate-500 mb-4">Each "WIG week" runs from this day to the day before. Commitments and scoring align to this cycle.</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { v: 1, label: 'Mon' },
+                    { v: 2, label: 'Tue' },
+                    { v: 3, label: 'Wed' },
+                    { v: 4, label: 'Thu' },
+                    { v: 5, label: 'Fri' },
+                    { v: 6, label: 'Sat' },
+                    { v: 0, label: 'Sun' },
+                  ].map(d => (
+                    <button
+                      key={d.v}
+                      type="button"
+                      onClick={() => setWigDayOfWeekState(d.v)}
+                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${wigDayOfWeek === d.v
+                        ? 'bg-brand-navy text-white border-brand-navy shadow-lg'
+                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-brand-navy'
+                        }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -602,6 +679,14 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
 
       {showDrafts && (
         <AITemplateDrafts drafts={aiDrafts} onSave={async (tmpl) => { await StorageService.addTemplate(tmpl); }} onClose={() => setShowDrafts(false)} />
+      )}
+
+      {selectedMember && (
+        <MemberDetailModal
+          member={selectedMember}
+          commitments={commitments}
+          onClose={() => setSelectedMember(null)}
+        />
       )}
     </div>
   );

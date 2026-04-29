@@ -2,6 +2,13 @@
 export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF';
 export type CommitmentStatus = 'completed' | 'partial' | 'incomplete';
 
+export interface ActivityEvent {
+  type: 'login' | 'commitment_set' | 'commitment_completed' | 'commitment_partial';
+  timestamp: number;
+  description: string;
+  weekId?: string;
+}
+
 export interface Achievement {
   id: string;
   title: string;
@@ -247,6 +254,9 @@ export interface WIGConfig {
   leadMeasures: LeadMeasureDefinition[];
   startDate: number;
   endDate: number;
+  // Day of week the WIG meeting falls on (0=Sun, 1=Mon, ..., 6=Sat).
+  // Defines the start of each "WIG week" so commitment cycles align with meetings.
+  wigDayOfWeek?: number;
   // Legacy fields (optional migration)
   leadMeasureTarget?: number;
   leadMeasureName?: string;

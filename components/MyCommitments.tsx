@@ -72,6 +72,8 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const [pendingCommitment, setPendingCommitment] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isFromTemplate, setIsFromTemplate] = useState(false);
+  const [templateSuggestedMeasureId, setTemplateSuggestedMeasureId] = useState<string | null>(null);
 
   const leadMeasures = wigConfig?.leadMeasures || [];
 
@@ -80,13 +82,28 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     e.preventDefault();
     if (!newCommitment.trim() || isFull) return;
 
+    const trimmed = newCommitment.trim();
+
+    // Detect if pasted/typed text matches a known template description.
+    // Templates are pre-vetted, so skip AI and route straight to lead-measure picker.
+    const matchingTemplate = (templates as CommitmentTemplate[]).find(
+      (t: CommitmentTemplate) => t.description.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (matchingTemplate) {
+      setNewCommitment('');
+      openTemplatePicker(matchingTemplate);
+      return;
+    }
+
     // Start validation process
-    setPendingCommitment(newCommitment.trim());
+    setPendingCommitment(trimmed);
     setNewCommitment('');
     setShowValidationModal(true);
     setIsValidating(true);
     setCheckResult(null);
     setValidationError(null);
+    setIsFromTemplate(false);
+    setTemplateSuggestedMeasureId(null);
 
     try {
       // Get teammate commitments for overlap check
@@ -129,14 +146,66 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     }
   };
 
-  // Templates already have built-in alignment - skip validation
+  // Map a template category to candidate keywords used to find the right Lead Measure.
+  // Each category lists keywords likely to appear in a measure's name or definition.
+  const CATEGORY_KEYWORDS: Record<string, string[]> = {
+    floor_walk: ['visibility', 'visible', 'walk', 'presence', 'floor', 'tour', 'rounds', 'sweep'],
+    preventive_maintenance: ['value', 'maintenance', 'preventive', 'proactive', 'prevention', 'reliability'],
+    documentation: ['value', 'documentation', 'docs', 'knowledge', 'guide', 'self-service'],
+    training: ['value', 'training', 'enablement', 'capability', 'coach', 'micro'],
+    infrastructure: ['value', 'infrastructure', 'systems', 'platform'],
+  };
+
+  const pickMeasureForTemplate = (template: CommitmentTemplate) => {
+    const measures = leadMeasures as { id: string; name: string; definition?: string }[];
+    if (measures.length === 0) return null;
+
+    const keywords = CATEGORY_KEYWORDS[template.category] || [];
+    const categoryWords = template.category.replace(/_/g, ' ').toLowerCase();
+
+    const matches = (m: { name: string; definition?: string }) => {
+      const haystack = `${m.name} ${m.definition || ''}`.toLowerCase();
+      if (haystack.includes(categoryWords)) return true;
+      return keywords.some(k => haystack.includes(k));
+    };
+
+    // Prefer a keyword match that still has capacity.
+    const matched = measures.find(m => matches(m) && !isMeasureAtCapacity(m.id));
+    if (matched) return matched;
+
+    // Otherwise, any measure with capacity.
+    const anyAvailable = measures.find(m => !isMeasureAtCapacity(m.id));
+    if (anyAvailable) return anyAvailable;
+
+    // All measures full — return the keyword match (caller will show capacity alert).
+    return measures.find(matches) || measures[0];
+  };
+
+  // Templates are pre-vetted — auto-assign the best matching Lead Measure.
   const handleTemplateSelect = (template: CommitmentTemplate) => {
-    // Map template category to a lead measure if possible
-    const matchedMeasure = leadMeasures.find(m =>
-      m.name.toLowerCase().includes(template.category.replace('_', ' '))
-    );
-    safeOnAdd(template.description, matchedMeasure?.id, matchedMeasure?.name);
+    const chosen = pickMeasureForTemplate(template);
+    safeOnAdd(template.description, chosen?.id, chosen?.name);
     setShowTemplates(false);
+  };
+
+  // Open picker modal (used when pasted text matches a template but we want explicit confirmation).
+  const openTemplatePicker = (template: CommitmentTemplate) => {
+    const chosen = pickMeasureForTemplate(template);
+    if (chosen && !isMeasureAtCapacity(chosen.id)) {
+      // Auto-assign without prompting.
+      safeOnAdd(template.description, chosen.id, chosen.name);
+      setShowTemplates(false);
+      return;
+    }
+    // Fallback: show picker only when no measure is available.
+    setPendingCommitment(template.description);
+    setIsFromTemplate(true);
+    setTemplateSuggestedMeasureId(chosen?.id || null);
+    setCheckResult(null);
+    setValidationError(null);
+    setIsValidating(false);
+    setShowTemplates(false);
+    setShowValidationModal(true);
   };
 
   const isFull = commitments.length >= 3;
@@ -274,10 +343,24 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
 
   const handleCheckCommitment = async () => {
     if (!newCommitment.trim() || newCommitment.length < 10) return;
-    lastCheckedTextRef.current = newCommitment.trim();
+    const trimmed = newCommitment.trim();
+    lastCheckedTextRef.current = trimmed;
 
-    // Validate we haven't already checked this exact text (simple cache)
-    // Note: robust implementations might use a proper cache map
+    // Templates are pre-vetted — short-circuit the AI check with a positive result.
+    const matchingTemplate = (templates as CommitmentTemplate[]).find(
+      (t: CommitmentTemplate) => t.description.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (matchingTemplate) {
+      setCheckResult({
+        isEffective: true,
+        isAligned: true,
+        score: 10,
+        feedback: 'This is a pre-vetted Power Play template — click Add to assign it to a Lead Measure.',
+        isRedundant: false,
+        isOverlapping: false,
+      });
+      return;
+    }
 
     setIsChecking(true);
     // Keep old result while checking? Or clear? 
@@ -487,13 +570,70 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
           <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl animate-fade-in overflow-hidden border-4 border-white">
             <div className="p-6 bg-slate-50 border-b border-slate-100">
               <h3 className="text-lg font-bold text-brand-navy uppercase tracking-tight">
-                {isValidating ? '🔍 Analysing Alignment...' : checkResult?.isAligned ? '✅ Aligned!' : '⚠️ Alignment Required'}
+                {isFromTemplate ? '⚡ Pick a Lead Measure' : isValidating ? '🔍 Analysing Alignment...' : checkResult?.isAligned ? '✅ Aligned!' : '⚠️ Alignment Required'}
               </h3>
               <p className="text-slate-500 text-xs mt-1">"{pendingCommitment}"</p>
             </div>
 
             <div className="p-6 space-y-4">
-              {isValidating ? (
+              {isFromTemplate ? (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-blue-800 text-sm font-medium">
+                      This is a pre-vetted template. Choose which Lead Measure it should count toward.
+                    </p>
+                  </div>
+                  {leadMeasures.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {(leadMeasures as Array<{ id: string; name: string }>).map((m: { id: string; name: string }) => {
+                        const measureData = measureCommitmentCounts.find((mc: { id: string; name: string; currentCount: number; target: number }) => mc.id === m.id || mc.name === m.name);
+                        const isAtCapacity = measureData ? measureData.currentCount >= measureData.target : false;
+                        const isSuggested = templateSuggestedMeasureId === m.id;
+                        return (
+                          <button
+                            key={m.id}
+                            disabled={isAtCapacity}
+                            onClick={() => {
+                              const added = safeOnAdd(pendingCommitment, m.id, m.name);
+                              if (added) {
+                                setShowValidationModal(false);
+                                setPendingCommitment('');
+                                setCheckResult(null);
+                                setIsFromTemplate(false);
+                                setTemplateSuggestedMeasureId(null);
+                              }
+                            }}
+                            className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors border-2 ${isAtCapacity
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                              : isSuggested
+                                ? 'bg-brand-navy text-white border-brand-navy shadow-lg'
+                                : 'bg-slate-100 hover:bg-brand-navy hover:text-white border-slate-100'
+                              }`}
+                          >
+                            {isSuggested && '⚡ '}{m.name} {isAtCapacity && '(Full)'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {leadMeasures.length === 0 && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          safeOnAdd(pendingCommitment);
+                          setShowValidationModal(false);
+                          setPendingCommitment('');
+                          setIsFromTemplate(false);
+                          setTemplateSuggestedMeasureId(null);
+                        }}
+                        className="px-4 py-2 bg-brand-navy text-white text-xs font-bold rounded-lg hover:bg-black transition-colors"
+                      >
+                        Add Commitment
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : isValidating ? (
                 <div className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-navy/20 border-t-brand-navy"></div>
                 </div>
@@ -640,6 +780,8 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                   setShowValidationModal(false);
                   setPendingCommitment('');
                   setCheckResult(null);
+                  setIsFromTemplate(false);
+                  setTemplateSuggestedMeasureId(null);
                 }}
                 className="px-4 py-2 text-slate-600 hover:text-slate-900 text-sm font-semibold transition-colors"
               >

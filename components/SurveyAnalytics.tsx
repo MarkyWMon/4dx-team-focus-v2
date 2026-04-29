@@ -58,10 +58,21 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
 
         const startTimestamp = startDate || 0;
 
+        // Filter out non-real / placeholder tech accounts (e.g. "Test Tech", "Tech 1", "Tech 2", "Tech1").
+        const isPlaceholderTech = (name: string) => {
+            const n = name.trim().toLowerCase();
+            if (!n || n === 'unknown') return true;
+            if (n.includes('test')) return true;
+            // "tech" optionally followed by whitespace and digits — covers "tech 1", "tech1", "tech 23"
+            if (/^tech\s*\d+$/.test(n)) return true;
+            return false;
+        };
+
         surveys.filter(s => s.date >= startTimestamp).forEach(s => {
             const name = s.tech || "Unknown";
             // Skip entries where tech looks like a ticket number (legacy bad data from parsing)
             if (/^\d+$/.test(name)) return;
+            if (isPlaceholderTech(name)) return;
             if (!techs[name]) techs[name] = { count: 0, total: 0, q1: 0, q2: 0, q3: 0 };
             techs[name].count++;
             techs[name].total += s.average;
@@ -83,20 +94,44 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
             .sort((a, b) => Number(b.avg) - Number(a.avg));
     }, [surveys, startDate]);
 
+    // --- Last Upload Indicator ---
+    const lastUploadInfo = useMemo(() => {
+        if (surveys.length === 0) return null;
+        const dates = surveys.map(s => s.date).filter(d => d && !isNaN(d));
+        if (dates.length === 0) return null;
+        const maxDate = Math.max(...dates);
+        const now = Date.now();
+        const diffMs = now - maxDate;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        let freshness: 'fresh' | 'stale' | 'old' = 'fresh';
+        let freshnessLabel = 'Today';
+        if (diffDays === 0) { freshness = 'fresh'; freshnessLabel = 'Today'; }
+        else if (diffDays === 1) { freshness = 'fresh'; freshnessLabel = 'Yesterday'; }
+        else if (diffDays <= 7) { freshness = 'fresh'; freshnessLabel = `${diffDays} days ago`; }
+        else if (diffDays <= 30) { freshness = 'stale'; freshnessLabel = `${diffDays} days ago`; }
+        else { freshness = 'old'; freshnessLabel = `${Math.floor(diffDays / 30)} month(s) ago`; }
+
+        return { date: maxDate, freshness, freshnessLabel, diffDays };
+    }, [surveys]);
+
     // --- Weekly Trend ---
     const weeklyTrend = useMemo(() => {
         const weeks: Record<string, { total: number; count: number }> = {};
 
-        // Sort surveys by date
         const startTimestamp = startDate || 0;
         const sorted = surveys.filter(s => s.date >= startTimestamp).sort((a, b) => a.date - b.date);
 
         sorted.forEach(s => {
-            // Simple week grouping - assuming weekId is YYYY-MM-DD of Monday
-            // Only keep last 12 active weeks for clarity
-            if (!weeks[s.weekId]) weeks[s.weekId] = { total: 0, count: 0 };
-            weeks[s.weekId].total += s.average;
-            weeks[s.weekId].count++;
+            // Compute ISO week ID (YYYY-WNN) from the survey date
+            const d = new Date(s.date);
+            const jan1 = new Date(d.getFullYear(), 0, 1);
+            const daysSinceJan1 = Math.floor((d.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
+            const weekNum = Math.ceil((daysSinceJan1 + jan1.getDay() + 1) / 7);
+            const computedWeekId = `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+
+            if (!weeks[computedWeekId]) weeks[computedWeekId] = { total: 0, count: 0 };
+            weeks[computedWeekId].total += s.average;
+            weeks[computedWeekId].count++;
         });
 
         return Object.entries(weeks)
@@ -151,6 +186,22 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
                 <div>
                     <h2 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Satisfaction Analytics</h2>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Helpdesk Survey Insights</p>
+                    {lastUploadInfo && (
+                        <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                            lastUploadInfo.freshness === 'fresh' ? 'bg-green-50 text-green-600' :
+                            lastUploadInfo.freshness === 'stale' ? 'bg-amber-50 text-amber-600' :
+                            'bg-red-50 text-red-500'
+                        }`}>
+                            <span className={`w-2 h-2 rounded-full ${
+                                lastUploadInfo.freshness === 'fresh' ? 'bg-green-400 animate-pulse' :
+                                lastUploadInfo.freshness === 'stale' ? 'bg-amber-400' :
+                                'bg-red-400'
+                            }`}></span>
+                            Last upload: {lastUploadInfo.freshnessLabel}
+                            <span className="text-slate-300 mx-1">•</span>
+                            <span className="font-medium normal-case tracking-normal">{new Date(lastUploadInfo.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
@@ -233,25 +284,33 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
                 {/* Trend Chart (CSS-only simple chart) */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                     <h3 className="text-lg font-black text-brand-navy uppercase tracking-tight mb-6">Satisfaction Trend (Last 12 Weeks)</h3>
-                    <div className="h-64 flex items-end gap-2">
-                        {weeklyTrend.map((week, idx) => (
-                            <div key={week.weekId} className="flex-1 flex flex-col items-center group relative">
-                                {/* Tooltip */}
-                                <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
-                                    {week.weekId}: {week.avg.toFixed(2)}
-                                </div>
-                                {/* Bar */}
-                                <div
-                                    className="w-full bg-brand-red/10 rounded-t-sm relative transition-all group-hover:bg-brand-red/20"
-                                    style={{ height: `${(week.avg / 10) * 100}%` }}
-                                >
+                    <div className="relative h-56">
+                        {/* Bar area */}
+                        <div className="absolute inset-x-0 top-0 bottom-8 flex gap-1">
+                            {weeklyTrend.map((week, idx) => (
+                                <div key={week.weekId} className="flex-1 h-full relative group">
+                                    {/* Tooltip */}
+                                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                                        {week.weekId}: {week.avg.toFixed(2)}
+                                    </div>
+                                    {/* Bar anchored to bottom */}
                                     <div
-                                        className="absolute top-0 w-full bg-brand-red h-1 rounded-t-sm"
-                                    ></div>
+                                        className="absolute bottom-0 inset-x-0 bg-brand-red/10 rounded-t-sm transition-all group-hover:bg-brand-red/20"
+                                        style={{ height: `${(week.avg / 10) * 100}%` }}
+                                    >
+                                        <div className="absolute top-0 w-full bg-brand-red h-1 rounded-t-sm"></div>
+                                    </div>
                                 </div>
-                                <span className="text-[8px] font-bold text-slate-300 mt-2 rotate-45 origin-left translate-x-2">{week.weekId.substring(5)}</span>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
+                        {/* X-axis labels */}
+                        <div className="absolute inset-x-0 bottom-0 h-8 flex gap-1">
+                            {weeklyTrend.map((week) => (
+                                <div key={week.weekId} className="flex-1 flex items-start justify-center pt-1">
+                                    <span className="text-[8px] font-bold text-slate-300 rotate-45 origin-left translate-x-1">{week.weekId.substring(5)}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 

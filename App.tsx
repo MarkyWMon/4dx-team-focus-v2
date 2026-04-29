@@ -4,7 +4,7 @@ import { StorageService } from './services/storage';
 import { WHDService } from './services/whd';
 import { AIService } from './services/ai';
 import { GamificationService } from './services/gamification';
-import { getWeekId, getPreviousWeekId, getNextWeekId } from './utils';
+import { getWeekId, getPreviousWeekId, getNextWeekId, setWigDayOfWeek } from './utils';
 import { auth, onAuthStateChanged, signOut, getRedirectResult } from './services/firebase';
 import Dashboard from './components/Dashboard';
 import MyCommitments from './components/MyCommitments';
@@ -140,6 +140,7 @@ const App: React.FC = () => {
     });
     const unsubWIG = StorageService.subscribeToWIGConfig((config) => {
       setWIGConfig(config);
+      setWigDayOfWeek(config?.wigDayOfWeek);
     });
     const unsubTickets = StorageService.subscribeToTickets((updatedTickets) => {
       setTickets(updatedTickets);
@@ -534,6 +535,7 @@ const App: React.FC = () => {
               currentUser={currentUser}
               leadMeasures={leadMeasures}
               surveys={[]}
+              commitments={commitments}
               templates={templates}
               onAddMember={async (name, email, role) => await StorageService.inviteMember(name, email, role)}
               onRemoveMember={(id) => StorageService.removeMember(id)}
