@@ -221,61 +221,40 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* SECTION A: THE WIG (Lag Measure) - SLIM MODERN */}
-        <section className="lg:col-span-2 cem-card relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-red to-brand-navy opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="flex justify-between items-end mb-6">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-500 uppercase tracking-widest">WIG Goal</span>
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{wigConfig?.description || "Strategic Focus"}</span>
-              </div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase italic">
-                {wigConfig?.title || "Strategy Goal"}
-              </h2>
-              {isManager && (
-                <div className="flex gap-2 mt-2">
-                  <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded uppercase tracking-tighter">
-                    Surveys: {surveys.length} | Start: {surveyStartDate ? new Date(surveyStartDate).toLocaleDateString() : 'None'}
-                  </span>
-                </div>
-              )}
+        {/* SECTION A: THE WIG (Lag Measure) */}
+        <section className="lg:col-span-2 cem-card relative overflow-hidden">
+          <div className="flex justify-between items-center mb-4 gap-4">
+            <div className="min-w-0">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">WIG Goal</span>
+              <h2 className="text-base font-semibold text-slate-800 truncate">{wigConfig?.title || "Strategy Goal"}</h2>
+              <p className="text-xs text-slate-400 mt-0.5 truncate">{wigConfig?.description || "Strategic Focus"}</p>
             </div>
-            <div className="text-right">
-              <div className="flex flex-col items-end">
-                <span className="text-4xl font-black text-slate-900 tracking-tighter leading-none">
-                  {currentScore}<span className="text-lg text-slate-300 ml-0.5">%</span>
-                </span>
-                <div className="trend-pill trend-up mt-2">
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 15l7-7 7 7" /></svg>
-                  1.2%
-                </div>
-              </div>
+            <div className="text-right shrink-0">
+              <span className="text-3xl font-bold text-slate-900 tracking-tight leading-none">
+                {currentScore}<span className="text-base text-slate-300 ml-0.5">%</span>
+              </span>
+              <div className="text-[10px] text-slate-400 font-medium mt-0.5">Target {wigConfig?.targetValue || 80}%</div>
             </div>
           </div>
 
-          <div className="relative pt-6 pb-2">
-            {/* Slim Progress Bar Container */}
-            <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden relative">
-              {/* Actual Progress */}
+          <div className="relative">
+            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
               <div
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-brand-red to-brand-navy shadow-[0_0_15px_rgba(227,6,19,0.4)] transition-all duration-1000 ease-out rounded-full"
+                className="h-full bg-gradient-to-r from-brand-red to-brand-navy transition-all duration-1000 ease-out rounded-full"
                 style={{ width: `${currentScore}%` }}
               ></div>
             </div>
-
-            {/* Target Marker - Slim */}
             <div
-              className="absolute top-1 bottom-0 w-0.5 bg-slate-800 z-10 opacity-20"
-              style={{ left: `${wigConfig?.targetValue || 80}%`, top: '1.5rem', height: '0.75rem' }}
+              className="absolute top-0 w-px h-2 bg-slate-700 opacity-30"
+              style={{ left: `${wigConfig?.targetValue || 80}%` }}
             ></div>
-
-            <div className="flex justify-between mt-3 text-xs font-medium text-slate-500">
-              <span>0%</span>
-              <span className="absolute -translate-x-1/2 font-bold text-slate-900" style={{ left: `${wigConfig?.targetValue || 80}%` }}>Target {wigConfig?.targetValue || 80}%</span>
-              <span>100%</span>
-            </div>
           </div>
+
+          {isManager && (
+            <p className="text-[9px] text-slate-300 font-medium uppercase tracking-tight mt-3">
+              Surveys: {surveys.length} · Start: {surveyStartDate ? new Date(surveyStartDate).toLocaleDateString() : 'None'}
+            </p>
+          )}
         </section>
 
         {/* SECTION A.5: USER STATS (Gamification v2) */}
@@ -381,48 +360,50 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto py-1">
-          {/* Calculate weekly results from commitments */}
           {(() => {
-            // Import getWeekId to generate proper week format
-            const getWeekIdLocal = (date: Date = new Date()): string => {
-              const target = new Date(date.valueOf());
-              const dayNr = (date.getDay() + 6) % 7;
-              target.setDate(target.getDate() - dayNr + 3);
-              const firstThursday = target.valueOf();
-              target.setMonth(0, 1);
-              if (target.getDay() !== 4) {
-                target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
-              }
-              const weekNo = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-              return `${target.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-            };
-
-            // Generate last 6 weeks starting from current week
-            const weeks: Array<{ weekId: string, completed: number, total: number, isWin: boolean }> = [];
-            let weekId = getWeekIdLocal(); // Use proper week format like "2026-W05"
+            // Build the last 6 weeks using the shared (WIG-day-aware) week IDs.
+            const weeks: Array<{ weekId: string; completed: number; total: number; state: 'win' | 'miss' | 'live' | 'empty' }> = [];
+            let weekId = currentWeekId;
 
             for (let i = 0; i < 6; i++) {
-              const weekCommitments = commitments.filter(c => c.weekId === weekId);
-              const completed = weekCommitments.filter(c => c.status === 'completed').length;
+              const weekCommitments = (commitments as Commitment[]).filter((c: Commitment) => c.weekId === weekId);
+              const completed = weekCommitments.filter((c: Commitment) => c.status === 'completed').length;
               const total = weekCommitments.length;
-              const isWin = total > 0 && completed >= total * 0.8; // 80% completion = win
-              weeks.push({ weekId, completed, total, isWin });
+              const isCurrent = weekId === currentWeekId;
+              let state: 'win' | 'miss' | 'live' | 'empty' = 'empty';
+              if (total === 0) {
+                state = 'empty';
+              } else if (isCurrent) {
+                state = 'live';
+              } else {
+                // A past week is a "win" if at least half the commitments were completed.
+                state = completed >= Math.ceil(total / 2) ? 'win' : 'miss';
+              }
+              weeks.push({ weekId, completed, total, state });
               weekId = getPreviousWeekId(weekId);
             }
 
-            return weeks.reverse().map((week, idx) => (
-              <div key={week.weekId} className="flex flex-col items-center flex-1">
-                <div className={`w-full h-1.5 rounded-full mb-2 ${week.total === 0 ? 'bg-slate-100' : week.isWin ? 'bg-brand-green' : 'bg-brand-red'}`}></div>
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs border transition-all ${week.total === 0 ? 'bg-slate-50 border-slate-100 text-slate-300' : week.isWin ? 'bg-brand-green/10 border-brand-green/20 text-brand-green' : 'bg-brand-red/10 border-brand-red/20 text-brand-red'
-                  }`}>
-                  {week.total === 0 ? '—' : week.isWin ? '✓' : '✗'}
-                </div>
-                <span className="text-[9px] font-semibold text-slate-400 mt-1 uppercase tracking-tight">
-                  {idx === weeks.length - 1 ? 'Now' : `W${week.weekId.split('-W')[1]}`}
-                </span>
+            const styles: Record<string, { bar: string; box: string; mark: string }> = {
+              win: { bar: 'bg-brand-green', box: 'bg-brand-green/10 border-brand-green/20 text-brand-green', mark: '✓' },
+              miss: { bar: 'bg-brand-red', box: 'bg-brand-red/10 border-brand-red/20 text-brand-red', mark: '✗' },
+              live: { bar: 'bg-brand-orange', box: 'bg-brand-orange/10 border-brand-orange/20 text-brand-orange', mark: '•' },
+              empty: { bar: 'bg-slate-100', box: 'bg-slate-50 border-slate-100 text-slate-300', mark: '—' },
+            };
 
-              </div>
-            ));
+            return weeks.reverse().map((week, idx) => {
+              const s = styles[week.state];
+              return (
+                <div key={week.weekId} className="flex flex-col items-center flex-1">
+                  <div className={`w-full h-1.5 rounded-full mb-2 ${s.bar}`}></div>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs border transition-all ${s.box}`}>
+                    {s.mark}
+                  </div>
+                  <span className="text-[9px] font-semibold text-slate-400 mt-1 uppercase tracking-tight">
+                    {idx === weeks.length - 1 ? 'Now' : `W${week.weekId.split('-W')[1]}`}
+                  </span>
+                </div>
+              );
+            });
           })()}
         </div>
       </section>
