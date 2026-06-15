@@ -53,8 +53,12 @@ service cloud.firestore {
     // --- Audit Logs ---
     match /audit_logs/{logId} {
       allow read: if isManager();
-      // Only allow creation of new logs, no updates or deletes
-      allow create: if request.auth != null;
+      // Only allow creation of new logs, no updates or deletes.
+      // Validate required fields to prevent log injection.
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasAll(['userId', 'userName', 'timestamp'])
+        && request.resource.data.keys().size() <= 4;  // id, userId, userName, timestamp
     }
 
     // --- Settings Collection ---
@@ -72,7 +76,8 @@ service cloud.firestore {
     // --- Tickets ---
     match /tickets/{ticketId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      // Only Managers/Admins can import or modify tickets
+      allow write: if isManager();
     }
 
     // --- Shared Daily Inspirations (AI Cache) ---
@@ -90,7 +95,9 @@ service cloud.firestore {
 
     // --- Survey Data ---
     match /surveys/{surveyId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      // Only Managers/Admins can upload or modify survey data
+      allow write: if isManager();
     }
 
     // --- AI Insights (Weekly Summaries) ---

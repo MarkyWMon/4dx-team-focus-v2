@@ -31,9 +31,10 @@ export const GamificationService = {
     /**
      * Calculates points earned for a commitment status change.
      */
-    calculatePointsForAction: (prevStatus: string, newStatus: string): number => {
+    calculatePointsForAction: (prevStatus: string, newStatus: string, isFirst: boolean = false): number => {
         if (newStatus === 'completed' && prevStatus !== 'completed') {
-            return SCORING.COMMITMENT_COMPLETE;
+            // Bonus points if this is the first completion of the week
+            return isFirst ? SCORING.COMMITMENT_COMPLETE + 25 : SCORING.COMMITMENT_COMPLETE;
         }
         if (prevStatus === 'completed' && newStatus !== 'completed') {
             return -SCORING.COMMITMENT_COMPLETE;

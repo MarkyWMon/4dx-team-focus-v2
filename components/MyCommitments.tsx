@@ -115,9 +115,8 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
         .filter(c => c.memberId === currentUser.id && c.weekId === prevWeekId)
         .map(c => c.description);
 
-      // Call upgraded AI check with lead measures
       const result = await AIService.checkCommitment(
-        newCommitment.trim(),
+        trimmed,
         { colleagues: teammateCommitments, history },
         leadMeasures
       );
@@ -130,15 +129,14 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
 
       // If aligned, auto-submit
       if (result?.isAligned && result.linkedLeadMeasureId) {
-        safeOnAdd(newCommitment.trim(), result.linkedLeadMeasureId, result.linkedLeadMeasureName || undefined);
+        safeOnAdd(trimmed, result.linkedLeadMeasureId, result.linkedLeadMeasureName || undefined);
         setShowValidationModal(false);
         setPendingCommitment('');
       }
       // If not aligned, keep modal open for user to see feedback
     } catch (e) {
-      console.error("Validation error:", e);
       // On error, allow submission without alignment (graceful degradation)
-      safeOnAdd(newCommitment.trim());
+      safeOnAdd(trimmed);
       setShowValidationModal(false);
       setPendingCommitment('');
     } finally {
@@ -293,11 +291,9 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
         // Validation: If cached results are from an old version (missing leadMeasureName), force refresh
         const isUpToDate = cached.some(s => s.leadMeasureName);
         if (isUpToDate) {
-          console.log("⚡ Loaded strategic suggestions from daily cache");
           setSuggestions(cached);
           setShowSuggestions(true);
         } else {
-          console.log("🔄 Cached suggestions are stale. Re-generating for better alignment...");
           const results = await AIService.generateCommitmentSuggestions(
             tickets || [],
             StorageService.getWIGConfig()?.leadMeasures || [],
@@ -314,7 +310,6 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
         }
       } else {
         // 2. If not found, generate via AI (SLOW)
-        console.log("🤖 Generating fresh suggestions via AI...");
         const results = await AIService.generateCommitmentSuggestions(
           tickets || [],
           StorageService.getWIGConfig()?.leadMeasures || [],
@@ -332,7 +327,6 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
         }
       }
     } catch (e) {
-      console.error(e);
       setSuggestionError('Unable to generate suggestions at the moment. Please try again later.');
       setShowSuggestions(true);
     } finally {
@@ -398,7 +392,6 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
 
       setCheckResult(result);
     } catch (e) {
-      console.error(e);
     } finally {
       setIsChecking(false);
     }
@@ -439,16 +432,6 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     const effectiveLeadMeasureName = proofLeadMeasure?.name || commitment?.leadMeasureName;
 
     // DEBUG: Log the scoring conditions
-    console.log('📊 SAVE PROOF DEBUG:', {
-      proofModalId,
-      proofStatus,
-      previousStatus: commitment?.status,
-      effectiveLeadMeasureId,
-      proofLeadMeasure,
-      commitmentLeadMeasureId: commitment?.leadMeasureId,
-      leadMeasuresCount: leadMeasures.length,
-      currentUserProgress: currentUser.leadMeasureProgress
-    });
 
     // REQUIRE lead measure selection for scoring when completing
     if (proofStatus === 'completed' && !effectiveLeadMeasureId && leadMeasures.length > 0) {
@@ -475,36 +458,29 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
       }
 
       await onUpdate(proofModalId, updates);
-      console.log('✅ Commitment updated:', updates);
 
       // AUTO-SCORING: Update lead measure scorecard when status changes
       if (effectiveLeadMeasureId && proofStatus !== previousStatus) {
         const currentProgress = currentUser.leadMeasureProgress?.[effectiveLeadMeasureId] || 0;
-        console.log('📈 Auto-scoring:', { effectiveLeadMeasureId, currentProgress, proofStatus, previousStatus });
 
         // Increment if newly completed, decrement if un-completed
         if (proofStatus === 'completed' && previousStatus !== 'completed') {
           const newProgress = currentProgress + 1;
-          console.log('⬆️ Incrementing score to:', newProgress);
           await StorageService.updateMemberMetrics(currentUser.id, {
             leadMeasureProgress: { ...currentUser.leadMeasureProgress, [effectiveLeadMeasureId]: newProgress }
           });
-          console.log('✅ Score updated in Firebase');
         } else if (previousStatus === 'completed' && proofStatus !== 'completed') {
           const newProgress = Math.max(0, currentProgress - 1);
-          console.log('⬇️ Decrementing score to:', newProgress);
           await StorageService.updateMemberMetrics(currentUser.id, {
             leadMeasureProgress: { ...currentUser.leadMeasureProgress, [effectiveLeadMeasureId]: newProgress }
           });
         }
       } else {
-        console.log('⚠️ Auto-scoring SKIPPED:', { effectiveLeadMeasureId, statusChanged: proofStatus !== previousStatus });
       }
 
       setProofModalId(null);
       setProofLeadMeasure(null);
     } catch (e) {
-      console.error("Proof update failed", e);
       alert("Encountered an error while saving. Please try again.");
     } finally {
       setIsSaving(false);

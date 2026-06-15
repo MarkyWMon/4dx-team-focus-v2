@@ -16,7 +16,6 @@ import SurveyUpload from './components/SurveyUpload';
 import SurveyAnalytics from './components/SurveyAnalytics';
 import ProfileDropdown from './components/ProfileDropdown';
 import AchievementToast from './components/AchievementToast';
-import ManagerDashboard from './components/ManagerDashboard';
 import { COMMITMENT_TEMPLATES } from './data/commitmentTemplates';
 
 const App: React.FC = () => {
@@ -26,7 +25,7 @@ const App: React.FC = () => {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [surveys, setSurveys] = useState<any[]>([]); // SurveyResult[]
+  const [surveys, setSurveys] = useState<SurveyResult[]>([]);
   const [templates, setTemplates] = useState<CommitmentTemplate[]>([]);
   const [selectedWeekId, setSelectedWeekId] = useState<string>(getWeekId());
   const [wigConfig, setWIGConfig] = useState<WIGConfig | null>(null);
@@ -215,7 +214,7 @@ const App: React.FC = () => {
       const dates = surveys.map(s => s.date).filter(d => !isNaN(d));
       const minDate = dates.length > 0 ? new Date(Math.min(...dates)).toLocaleDateString() : 'None';
       const maxDate = dates.length > 0 ? new Date(Math.max(...dates)).toLocaleDateString() : 'None';
-      console.log(`📊 Surveys updated: ${surveys.length} total | Range: ${minDate} to ${maxDate} | Filter Start: ${surveyStartDate ? new Date(surveyStartDate).toLocaleDateString() : 'None'}`);
+
     }
   }, [surveys, surveyStartDate]);
 
@@ -225,7 +224,7 @@ const App: React.FC = () => {
 
     WHDService.fetchAndSync()
       .then(async (syncedTickets) => {
-        console.log(`✓ Synced ${syncedTickets.length} tickets from SolarWinds proxy`);
+
 
         let validTickets = syncedTickets;
         if (syncedTickets.length > 0) {
@@ -242,7 +241,7 @@ const App: React.FC = () => {
 
         const existing = await StorageService.getDailyInspirations(dateKey);
         if (!existing && validTickets.length > 0) {
-          console.log("⚡ Auto-generating Daily Inspirations in background...");
+
           // Pass dynamic lead measures and templates for contextual alignment
           AIService.generateCommitmentSuggestions(
             validTickets,
@@ -252,7 +251,7 @@ const App: React.FC = () => {
             .then(suggestions => {
               if (suggestions.length > 0) {
                 StorageService.saveDailyInspirations(dateKey, suggestions);
-                console.log("✓ Daily Inspirations cached successfully");
+
               }
             })
             .catch(err => console.error("Background AI Gen failed:", err));
@@ -263,7 +262,7 @@ const App: React.FC = () => {
         // Fallback to local storage on error
         const cachedTickets = StorageService.getTickets();
         if (cachedTickets.length > 0) {
-          console.log(`✓ Loaded ${cachedTickets.length} tickets from local cache after sync failure`);
+
           // We don't need to manually set state here because subscribeToTickets 
           // will have already fired with the cached data (if we didn't wipe it).
           // However, if sync failed, we should ensure the UI knows we have something.
@@ -533,15 +532,10 @@ const App: React.FC = () => {
             <TeamManagement
               members={members}
               currentUser={currentUser}
-              leadMeasures={leadMeasures}
-              surveys={[]}
               commitments={commitments}
               templates={templates}
               onAddMember={async (name, email, role) => await StorageService.inviteMember(name, email, role)}
               onRemoveMember={(id) => StorageService.removeMember(id)}
-              onRefreshTickets={() => { }}
-              onUpdateMeasure={() => { }}
-              onDeleteMeasure={() => { }}
               wigConfig={wigConfig}
               onUpdateWIGConfig={(config) => StorageService.updateWIGConfig(config)}
               branding={branding}
@@ -554,6 +548,13 @@ const App: React.FC = () => {
           <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest opacity-60">BHASVIC IT Support Strategy Framework &copy; {new Date().getFullYear()}</p>
         </footer>
       </div>
+      {/* Achievement Toast */}
+      {activeAchievement && (
+        <AchievementToast
+          achievement={activeAchievement}
+          onClose={() => setActiveAchievement(null)}
+        />
+      )}
     </div>
   );
 };

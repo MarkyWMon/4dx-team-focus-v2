@@ -42,5 +42,4 @@ const dummyUsers = [
     }
 ];
 
-console.log("📋 Dummy users template loaded (not seeded - requires Firebase config):");
 console.table(dummyUsers.map(u => ({ id: u.id, name: u.name, role: u.role })));

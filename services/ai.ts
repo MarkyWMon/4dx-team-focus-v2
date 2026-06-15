@@ -60,7 +60,6 @@ async function withRetryAndFallback<T>(
       if (!isRateLimitError(e)) {
         throw e; // Non-rate-limit error, throw immediately
       }
-      console.warn(`🤖 AI: Rate limited (429) on ${model}. Trying next model...`);
     }
   }
 
@@ -151,7 +150,6 @@ export const AIService = {
       // Always initialize with Vite environment variable
       const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
       if (!apiKey) {
-        console.warn('AI: API key not configured.');
         return [];
       }
       const ai = new GoogleGenAI({ apiKey });
@@ -163,7 +161,6 @@ export const AIService = {
         config: { responseMimeType: "application/json" }
       }));
 
-      console.log(`🤖 AI: Model response received in ${Date.now() - startTime}ms`);
 
       // Robust text extraction
       let text = '';
@@ -173,12 +170,10 @@ export const AIService = {
           text = result.response.candidates[0].content.parts[0].text;
         }
       } catch (e) {
-        console.warn("AI: Standard text extraction failed, trying fallback...", e);
         text = (result as any).text || '';
       }
 
       if (!text) {
-        console.error("AI: No text returned from model", result);
         return [];
       }
 
@@ -192,7 +187,6 @@ export const AIService = {
         leadMeasureName: s.leadMeasureName
       }));
     } catch (e) {
-      console.error("AI Generation Error:", e);
       return [];
     }
   },
@@ -261,10 +255,8 @@ export const AIService = {
         }
       `;
 
-      console.log("🤖 AI: Checking commitment for alignment/leverage/overlap...");
       const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
       if (!apiKey) {
-        console.warn('Google AI API key not configured. Set VITE_GOOGLE_AI_API_KEY in .env file');
         return null;
       }
       const ai = new GoogleGenAI({ apiKey });
@@ -277,10 +269,8 @@ export const AIService = {
       }));
 
       const resultText = response.text?.trim() || '{}';
-      console.log("🤖 AI: Alignment check complete.");
       return JSON.parse(resultText);
     } catch (e) {
-      console.error("AI Check failed", e);
       return null;
     }
   },
@@ -331,7 +321,6 @@ export const AIService = {
         ]
       `;
 
-      console.log("🤖 AI: Designing Strategy Playbook...");
       const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
       const ai = new GoogleGenAI({ apiKey });
       const result = await withRetryAndFallback((model) => ai.models.generateContent({
@@ -350,11 +339,9 @@ export const AIService = {
         text = (result as any).text || '';
       }
 
-      console.log("🤖 AI: Playbook Drafted.");
       const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(cleanText || '[]');
     } catch (e) {
-      console.error("AI Template Gen failed:", e);
       return [];
     }
   },
@@ -393,10 +380,8 @@ export const AIService = {
         - No markdown formatting, just plain text.
       `;
 
-      console.log("🤖 AI: Generating Weekly Summary...");
       const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
       if (!apiKey) {
-        console.warn('AI: API key not configured. Cannot generate summary.');
         return "Unable to generate summary — AI API key not configured.";
       }
       const ai = new GoogleGenAI({ apiKey });
@@ -405,7 +390,6 @@ export const AIService = {
         contents: [{ role: 'user', parts: [{ text: prompt }] }]
       }));
 
-      console.log("🤖 AI: Model response received.");
 
       let text = (result as any).text || '';
       if (!text) {
@@ -416,15 +400,12 @@ export const AIService = {
             text = candidates[0].content.parts[0].text;
           }
         } catch (e) {
-          console.warn("AI: Text extraction failed in summary generation", e);
         }
       }
 
       const finalSummary = text.trim() || "Great work team! (AI generation produced empty result)";
-      console.log("🤖 AI: Final Summary:", finalSummary);
       return finalSummary;
     } catch (e: any) {
-      console.error("AI Summary Gen failed:", e);
       const isRateLimit = e?.message?.includes('429') || e?.message?.includes('RESOURCE_EXHAUSTED');
       if (isRateLimit) {
         return "Unable to generate summary at this time. Rate limit reached — please try again in a few seconds.";

@@ -31,22 +31,18 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   // Calculate WIG Score from Survey Data
   const currentScore = useMemo(() => {
-    console.log(`[Dashboard] Surveys available: ${surveys.length}`);
     let filteredSurveys = surveys;
     if (surveyStartDate) {
       filteredSurveys = surveys.filter(s => s.date >= surveyStartDate);
-      console.log(`[Dashboard] Filtering by date >= ${new Date(surveyStartDate).toLocaleDateString()}. Matches: ${filteredSurveys.length}/${surveys.length}`);
     }
 
     if (filteredSurveys.length === 0) {
-      console.log("[Dashboard] Result: No data after filtering. Falling back to default.");
       return wigConfig?.currentValue || 70;
     }
 
     const total = filteredSurveys.reduce((sum, s) => sum + s.average, 0);
     const avg = total / filteredSurveys.length;
     const result = Math.round(avg * 10);
-    console.log(`[Dashboard] Success: Calculated ${result}% from ${filteredSurveys.length} surveys (Avg: ${avg.toFixed(2)})`);
     return result;
   }, [surveys, wigConfig, surveyStartDate]);
 
@@ -88,12 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       .sort((a: { allTime: number; thisWeek: number }, b: { allTime: number; thisWeek: number }) => b.allTime - a.allTime || b.thisWeek - a.thisWeek);
   }, [members, commitments, currentWeekId]);
 
-  const handleUpdateScore = async () => {
-    if (wigConfig) {
-      await StorageService.updateWIGConfig({ ...wigConfig, currentValue: tempScore });
-    }
-    setEditingScore(false);
-  };
+
 
   const handleUpdateMember = async (id: string, updates: Partial<TeamMember>) => {
     await StorageService.updateMemberMetrics(id, updates);
@@ -115,14 +106,11 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const handleGenerateSummary = async () => {
     setIsGeneratingSummary(true);
-    console.log("Generating summary for commitments:", currentWeekCommitments.length);
     const summary = await AIService.generateWeeklySummary(currentWeekCommitments, currentWeekId);
-    console.log("Received summary from AI:", summary);
 
     if (summary) {
       setWeeklySummary(summary);
       await StorageService.saveWeeklySummary(currentWeekId, summary);
-      console.log("Summary saved to storage");
     }
     setIsGeneratingSummary(false);
   };

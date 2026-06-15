@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TeamMember, LeadMeasure, WIGConfig, CommitmentTemplate, CommitmentCategory, LeadMeasureDefinition, BrandingConfig, DEFAULT_BRANDING, Commitment } from '../types';
+import { TeamMember, WIGConfig, CommitmentTemplate, CommitmentCategory, LeadMeasureDefinition, BrandingConfig, DEFAULT_BRANDING, Commitment } from '../types';
 import { StorageService } from '../services/storage';
 import { getTemplateCategoryLabel, getCategoryColor } from '../data/commitmentTemplates';
 import { AIService } from '../services/ai';
@@ -10,15 +10,9 @@ import MemberDetailModal from './MemberDetailModal';
 interface TeamManagementProps {
   members: TeamMember[];
   currentUser: TeamMember;
-  leadMeasures: LeadMeasure[];
-  surveys: any[];
   commitments: Commitment[];
   onAddMember: (name: string, email: string, role: 'ADMIN' | 'MANAGER' | 'STAFF') => void;
   onRemoveMember: (id: string) => void;
-  onRefreshTickets: () => void;
-  onAddMeasure: any;
-  onUpdateMeasure: any;
-  onDeleteMeasure: any;
   wigConfig: WIGConfig | null;
   onUpdateWIGConfig: (config: WIGConfig) => void;
   templates: CommitmentTemplate[];
@@ -122,15 +116,7 @@ interface TeamManagementProps {
     }
   }, [wigConfig]);
 
-  useEffect(() => {
-    setPrimaryColor(branding.primaryColor);
-    setSecondaryColor(branding.secondaryColor);
-    setSuccessColor(branding.successColor || '#82BC00');
-    setWarningColor(branding.warningColor || '#F37A1F');
-    setTitleFont(branding.titleFont);
-    setBodyFont(branding.bodyFont);
-    setLogoUrl(branding.logoUrl || '');
-  }, [branding]);
+
 
 
 
@@ -151,19 +137,7 @@ interface TeamManagementProps {
 
   const handleRestoreBranding = () => {
     if (confirm("Restore branding to Bhasvic defaults?")) {
-      const { DEFAULT_BRANDING } = import('../types');
-      // Note: import() in sync handler is tricky, but we have it in scope via props/parent usually.
-      // Since it's a small object, I'll just use the known defaults or pass it in.
-      onUpdateBranding({
-        primaryColor: '#E30613',
-        secondaryColor: '#003057',
-        successColor: '#82BC00',
-        warningColor: '#F37A1F',
-        titleFont: 'Poppins',
-        bodyFont: 'Roboto',
-        logoUrl: '',
-        updatedAt: Date.now()
-      });
+      onUpdateBranding({ ...DEFAULT_BRANDING, updatedAt: Date.now() });
     }
   };
 

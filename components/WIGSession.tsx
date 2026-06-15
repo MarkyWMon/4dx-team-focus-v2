@@ -119,7 +119,7 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
     };
 
     const currentStepId = isReviewing ? reviewStep : session?.currentStep;
-    console.log('Render: isReviewing=', isReviewing, ' reviewStep=', reviewStep, ' sessionStep=', session?.currentStep, ' currentStepId=', currentStepId);
+
 
     const currentAgendaItem = session ? AGENDA_STEPS.find(s => s.id === currentStepId) : null;
 
@@ -301,7 +301,7 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                             {isReviewing ? (
                                 <button
                                     onClick={() => {
-                                        console.log('Review Step Click. Current:', reviewStep);
+
                                         if (reviewStep < 5) {
                                             setReviewStep(prev => prev + 1);
                                         } else {

@@ -102,9 +102,7 @@ const surveyConfigListeners: ((config: { startDate: number } | null) => void)[] 
 const saveLocal = <T>(key: string, data: T): void => {
   try {
     const json = JSON.stringify(data);
-    // Basic obfuscation to prevent plain-text reading in DevTools
-    const obfuscated = btoa(encodeURIComponent(json));
-    localStorage.setItem(key, obfuscated);
+    localStorage.setItem(key, json);
   } catch (e) { }
 };
 
@@ -113,11 +111,12 @@ const loadLocal = <T>(key: string, defaultVal: T): T => {
     const item = localStorage.getItem(key);
     if (!item) return defaultVal;
 
-    // Fallback for existing plain-text data
-    if (item.startsWith('[') || item.startsWith('{')) {
+    // Fast path: if it looks like JSON, parse it directly
+    if (item.startsWith('[') || item.startsWith('{') || item.startsWith('"')) {
       return JSON.parse(item);
     }
 
+    // Backwards compatibility for previously obfuscated data
     const deobfuscated = decodeURIComponent(atob(item));
     return JSON.parse(deobfuscated);
   } catch (e) { return defaultVal; }
@@ -130,7 +129,6 @@ export const StorageService = {
       const snapshot = await getDocs(q);
       return !snapshot.empty;
     } catch (e: any) {
-      console.warn("Could not verify Admin existence (CORS/Permissions).");
       return false;
     }
   },
@@ -141,7 +139,6 @@ export const StorageService = {
       if (!snap.exists()) return null;
       return { ...snap.data(), id: snap.id } as TeamMember;
     } catch (e) {
-      console.error("Error fetching member by ID:", e);
       return null;
     }
   },
@@ -164,7 +161,6 @@ export const StorageService = {
 
       return records[0];
     } catch (e) {
-      console.error("Error fetching member by email:", e);
       return null;
     }
   },
@@ -236,7 +232,6 @@ export const StorageService = {
   linkAndProvision: async (uid: string, name: string, email: string, role: string): Promise<TeamMember> => {
     // Guard against concurrent provisioning
     if (isProvisioning) {
-      console.log(`Provisioning already in progress for ${email}, waiting...`);
       // Wait until provisioning is done (poll every 200ms, max 5s)
       await new Promise<void>((resolve) => {
         let elapsed = 0;
@@ -251,7 +246,6 @@ export const StorageService = {
     }
 
     isProvisioning = true;
-    console.log(`Provisioning user ${email} with role ${role}...`);
 
     try {
       if (!uid || !email) throw new Error("Cannot provision: UID or Email missing.");
@@ -264,14 +258,12 @@ export const StorageService = {
       const validRoles = ['ADMIN', 'MANAGER', 'STAFF'];
       const effectiveRole = validRoles.includes(role) ? role : 'STAFF';
       if (!validRoles.includes(role)) {
-        console.warn(`Invalid role ${role} requested, defaulting to STAFF.`);
       }
 
       // Check if user already exists with this UID
       const existingById = await getDoc(doc(db, "members", uid));
       if (existingById.exists()) {
         const existingMember = { ...existingById.data(), id: uid } as TeamMember;
-        console.log(`User ${email} already provisioned (UID: ${uid}), skipping.`);
         // Still clean up any orphaned records
         await StorageService.cleanupDuplicateMembers(uid, email.toLowerCase().trim());
         return existingMember;
@@ -308,14 +300,12 @@ export const StorageService = {
       };
 
       await setDoc(doc(db, "members", uid), member);
-      console.log("Successfully provisioned member in Firestore.");
 
       // Clean up orphaned records (pending-* docs, duplicates with same email but different ID)
       await StorageService.cleanupDuplicateMembers(uid, email.toLowerCase().trim());
 
       return member;
     } catch (e: any) {
-      console.error("Failed to provision member:", e.message);
       throw e;
     } finally {
       isProvisioning = false;
@@ -336,15 +326,12 @@ export const StorageService = {
       const deletions: Promise<void>[] = [];
       snap.docs.forEach(d => {
         if (d.id !== keepId) {
-          console.log(`Cleaning up duplicate member record: ${d.id} (${email})`);
           deletions.push(deleteDoc(doc(db, "members", d.id)));
         }
       });
 
       await Promise.all(deletions);
-      console.log(`Cleaned up ${deletions.length} duplicate record(s) for ${email}`);
     } catch (e) {
-      console.error("Error cleaning up duplicate members:", e);
       // Non-fatal — don't throw
     }
   },
@@ -445,13 +432,12 @@ export const StorageService = {
           }
         });
 
-        const updates: any = { score: newScore };
+        const updates: Partial<TeamMember> = { score: newScore };
         if (changed) updates.achievements = newAchievements;
 
         await setDoc(ref, updates, { merge: true });
       }
     } catch (e) {
-      console.error("Failed to update user score:", e);
     }
   },
 
@@ -498,9 +484,7 @@ export const StorageService = {
   },
 
   updateMemberMetrics: async (memberId: string, updates: Partial<TeamMember>) => {
-    console.log('🔄 updateMemberMetrics called:', { memberId, updates });
     await setDoc(doc(db, "members", memberId), updates, { merge: true });
-    console.log('✅ Firebase member document updated');
   },
 
   removeMember: async (id: string): Promise<void> => {
@@ -572,17 +556,14 @@ export const StorageService = {
           if (cSnap.size > 0) {
             await batch.commit();
             commitmentsMoved += cSnap.size;
-            console.log(`Moved ${cSnap.size} commitments from ${orphan.id} → ${canonical.id}`);
           }
 
           // 5. Delete the orphan member record
           await deleteDoc(doc(db, "members", orphan.id));
-          console.log(`Deleted duplicate member: ${orphan.id} (${orphan.name})`);
           merged++;
         }
       }
     } catch (e) {
-      console.error("Error during member merge cleanup:", e);
       throw e;
     }
 
@@ -608,11 +589,11 @@ export const StorageService = {
     );
   },
 
-  updateWIGConfig: async (config: any): Promise<void> => {
+  updateWIGConfig: async (config: Partial<WIGConfig>): Promise<void> => {
     await setDoc(doc(db, "settings", "wig_config"), config, { merge: true });
   },
 
-  getWIGConfig: () => loadLocal<any>(STORAGE_KEYS.WIG_CONFIG, null),
+  getWIGConfig: () => loadLocal<WIGConfig | null>(STORAGE_KEYS.WIG_CONFIG, null),
 
   saveTickets: async (tickets: Ticket[]): Promise<void> => {
     // 1. Save locally first (instant UI update)
@@ -630,9 +611,7 @@ export const StorageService = {
       });
       try {
         await batch.commit();
-        console.log(`Saved ticket chunk ${i / chunkSize + 1}`);
       } catch (e) {
-        console.error("Error saving ticket chunk:", e);
       }
     }
   },
@@ -674,7 +653,6 @@ export const StorageService = {
       }
       return null;
     } catch (e) {
-      console.error("Error fetching daily inspirations:", e);
       return null;
     }
   },
@@ -690,7 +668,6 @@ export const StorageService = {
         createdAt: new Date().toISOString()
       });
     } catch (e) {
-      console.error("Error saving daily inspirations:", e);
     }
   },
   getCommitments: (weekId?: string): Commitment[] => {
@@ -733,17 +710,14 @@ export const StorageService = {
       const snapshot = await getDocs(q);
 
       if (snapshot.empty) {
-        console.log("Seeding templates...");
         const batch = writeBatch(db);
         defaultTemplates.forEach(tmpl => {
           const ref = doc(db, "commitment_templates", tmpl.id);
           batch.set(ref, tmpl);
         });
         await batch.commit();
-        console.log("Templates seeded.");
       }
     } catch (e) {
-      console.error("Error seeding templates:", e);
     }
   },
 
@@ -753,7 +727,6 @@ export const StorageService = {
       const snapshot = await getDoc(ref);
 
       if (!snapshot.exists()) {
-        console.log("Seeding WIG config...");
         const now = Date.now();
         const endOfYear = new Date(new Date().getFullYear(), 11, 31).getTime();
 
@@ -774,10 +747,8 @@ export const StorageService = {
           endDate: endOfYear,
         };
         await setDoc(ref, defaultConfig);
-        console.log("WIG config seeded.");
       }
     } catch (e) {
-      console.error("Error seeding WIG config:", e);
     }
   },
 
@@ -807,12 +778,9 @@ export const StorageService = {
       const ref = doc(db, "settings", "branding");
       const snapshot = await getDoc(ref);
       if (!snapshot.exists()) {
-        console.log("Seeding branding...");
         await setDoc(ref, defaultBranding);
-        console.log("Branding seeded.");
       }
     } catch (e) {
-      console.error("Error seeding branding:", e);
     }
   },
 
@@ -830,28 +798,30 @@ export const StorageService = {
         batch.set(ref, survey);
       });
 
-      console.log(`[StorageService] Committing survey batch ${i / chunkSize + 1} (${chunk.length} items)...`);
       try {
         await batch.commit();
-        console.log(`[StorageService] Batch ${i / chunkSize + 1} committed successfully.`);
       } catch (e: any) {
-        console.error(`[StorageService] FAILED to commit batch ${i / chunkSize + 1}:`, e);
         throw new Error(`Firebase Error during batch save: ${e.message}`);
       }
     }
-    console.log(`[StorageService] All ${surveys.length} surveys processed.`);
   },
 
   clearAllSurveys: async (): Promise<void> => {
     try {
       const snapshot = await getDocs(collection(db, "surveys"));
-      const batch = writeBatch(db);
-      snapshot.docs.forEach(d => batch.delete(d.ref));
-      await batch.commit();
+      const docs = snapshot.docs;
+
+      // Chunk into batches of 500 (Firestore batch limit)
+      const chunkSize = 500;
+      for (let i = 0; i < docs.length; i += chunkSize) {
+        const chunk = docs.slice(i, i + chunkSize);
+        const batch = writeBatch(db);
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+
       saveLocal(STORAGE_KEYS.SURVEYS, []);
-      console.log(`[StorageService] Purged ${snapshot.size} surveys.`);
     } catch (e) {
-      console.error("Error clearing surveys:", e);
       throw e;
     }
   },
@@ -861,7 +831,6 @@ export const StorageService = {
       const snapshot = await getDocs(collection(db, "surveys"));
       return snapshot.docs.map(d => d.data() as SurveyResult);
     } catch (e) {
-      console.error("Error getting surveys:", e);
       return [];
     }
   },
@@ -892,7 +861,6 @@ export const StorageService = {
     try {
       await setDoc(doc(db, "settings", "survey_config"), config, { merge: true });
     } catch (e) {
-      console.warn('StorageService: Failed to save survey config to Firestore (using local only):', e);
       // Do not throw, allowing the app to continue working locally
     }
   },
@@ -922,7 +890,6 @@ export const StorageService = {
         }
       },
       (error) => {
-        console.error("Survey Config Listener Error:", error);
       }
     );
 
@@ -949,7 +916,6 @@ export const StorageService = {
         generatedAt: Date.now()
       });
     } catch (e) {
-      console.error("Error saving summary to Firestore (local only):", e);
     }
   },
 
@@ -968,7 +934,6 @@ export const StorageService = {
       }
       return null;
     } catch (e) {
-      console.error("Error fetching summary:", e);
       return null;
     }
   },
@@ -986,7 +951,6 @@ export const StorageService = {
         events.push({ type: 'login', timestamp: data.timestamp, description: 'Signed in' });
       });
     } catch (e) {
-      console.warn("Could not fetch audit_logs:", e);
     }
 
     try {
@@ -1014,7 +978,6 @@ export const StorageService = {
         }
       });
     } catch (e) {
-      console.warn("Could not fetch commitments for activity:", e);
     }
 
     return events.sort((a, b) => b.timestamp - a.timestamp);

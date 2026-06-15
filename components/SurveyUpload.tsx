@@ -35,7 +35,6 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
         }
 
         if (rawHeaders.length === 0) {
-            console.error("Could not detect any header row in TSV.");
             return [];
         }
 
@@ -89,8 +88,7 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
             return idx !== -1 ? idx : -1;
         })();
 
-        console.log(`[SurveyUpload] Header Row found at index ${headerRowIndex}:`, rawHeaders);
-        // console.log('Tech column index:', techCol, '| Ticket column index:', ticketCol); // Removed old log
+
         // if (techCol === -1) { // Removed old log
         //     console.warn('⚠️ No tech/agent column found in TSV headers. Falling back to column index 4. Headers found:', rawHeaders);
         // }
@@ -120,18 +118,9 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
                     timestamp = new Date(dateStr).getTime();
                 }
             } catch (e) {
-                // if (i < 5) console.warn(`[SurveyUpload] Failed to parse date: "${dateStr}"`, e); // Removed old log
             }
 
             if (isNaN(timestamp)) timestamp = Date.now();
-
-            // if (i < 3) { // Removed old log
-            //     console.log(`[SurveyUpload] Row ${i} Diagnostic:`, {
-            //         dateStr,
-            //         parsedDate: new Date(timestamp).toLocaleDateString(),
-            //         weekId: getWeekId(new Date(timestamp))
-            //     });
-            // }
 
             // Extract Scores format: "10: Extremely Satisfied" -> 10 OR raw "10"
             const extractScore = (str: string) => {
@@ -160,7 +149,6 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
             
             // Filter out rows where tech is empty or looks like a ticket number (purely numeric)
             if (tech && /^\d+$/.test(tech)) {
-                console.warn(`[SurveyUpload] Skipping row ${i}: tech "${tech}" looks like a ticket number, not a name`);
                 continue;
             }
 
@@ -180,11 +168,10 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
             };
 
             if (surveys.length < 3) { // Log first 3 parsed rows
-                console.log(`[SurveyUpload] Parsed Row ${surveys.length + 1}:`, result);
             }
             surveys.push(result);
         }
-        // console.log(`Parsed ${surveys.length} surveys successfully. Scores sample:`, surveys.slice(0, 3).map(s => s.average)); // Removed old log
+
         return surveys;
     };
 
@@ -225,12 +212,10 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
 
         // Detect encoding first, then read with correct encoding
         detectEncoding(file).then(encoding => {
-            console.log(`[SurveyUpload] Detected encoding: ${encoding}`);
             const reader = new FileReader();
             reader.onload = async (event) => {
                 try {
                     const text = event.target?.result as string;
-                    console.log(`[SurveyUpload] First 200 chars of parsed text:`, text.substring(0, 200));
                     const parsedSurveys = parseTSV(text);
 
                     if (parsedSurveys.length === 0) {
@@ -239,9 +224,7 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
                         return;
                     }
 
-                    console.log(`[SurveyUpload] Sending ${parsedSurveys.length} surveys to Storage...`);
                     await StorageService.saveSurveys(parsedSurveys);
-                    console.log(`[SurveyUpload] Storage save returned.`);
 
                     setUploadStats({ total: parsedSurveys.length, new: parsedSurveys.length });
                     setIsUploading(false);
@@ -251,7 +234,6 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
 
                     if (fileInputRef.current) fileInputRef.current.value = '';
                 } catch (err: any) {
-                    console.error("[SurveyUpload] Save failed:", err);
                     setError(`Upload failed: ${err.message}`);
                     setIsUploading(false);
                 }
