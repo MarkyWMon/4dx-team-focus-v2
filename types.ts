@@ -2,6 +2,13 @@
 export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF';
 export type CommitmentStatus = 'completed' | 'partial' | 'incomplete';
 
+// Append-only record of a commitment's status transitions, used by the
+// Commitment Analytics dashboard to reconstruct when work was set vs. closed.
+export interface CommitmentStatusEvent {
+  status: CommitmentStatus;
+  at: number; // Unix ms
+}
+
 export interface ActivityEvent {
   type: 'login' | 'commitment_set' | 'commitment_completed' | 'commitment_partial';
   timestamp: number;
@@ -71,6 +78,8 @@ export interface Commitment {
   description: string;
   status: CommitmentStatus;
   createdAt: number;
+  completedAt?: number; // Set the FIRST time status becomes 'completed'; never overwritten
+  statusHistory?: CommitmentStatusEvent[]; // Append-only audit trail of every transition
   completionNote?: string;
   completionPhoto?: string; // Base64 string
   leadMeasureId?: string; // Linked Lead Measure (auto-set by AI or template)
@@ -178,6 +187,16 @@ export interface CommitmentCheckResult {
   isAligned?: boolean; // True if commitment aligns with a Lead Measure
 }
 
+export interface CommitmentThemeReport {
+  overall: string;
+  perMember: {
+    memberName: string;
+    themes: string[];
+    summary: string;
+  }[];
+  neglectedVsLeadMeasures?: string;
+}
+
 export interface ImportPreferences {
   idIndex: number;
   dateIndex: number;
@@ -196,7 +215,8 @@ export enum AppView {
   ADMIN_CONSOLE = 'ADMIN_CONSOLE',
   WIG_SESSION = 'WIG_SESSION',
   SURVEYS = 'SURVEYS',
-  MANAGER_DASHBOARD = 'MANAGER_DASHBOARD'
+  MANAGER_DASHBOARD = 'MANAGER_DASHBOARD',
+  COMMITMENT_ANALYTICS = 'COMMITMENT_ANALYTICS'
 }
 
 export interface WIGSessionStep {

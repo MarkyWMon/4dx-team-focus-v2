@@ -347,9 +347,11 @@ export const StorageService = {
   ): Promise<void> => {
     if (!memberId) throw new Error("No memberId provided for commitment.");
     const id = `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const now = Date.now();
     const newCommitment: Commitment = {
       id, memberId, weekId, description,
-      status: 'incomplete', createdAt: Date.now(),
+      status: 'incomplete', createdAt: now,
+      statusHistory: [{ status: 'incomplete', at: now }],
       leadMeasureId: leadMeasureId || undefined,
       leadMeasureName: leadMeasureName || undefined,
       alignedByAI: !!leadMeasureId, // True if we have a linked measure
@@ -375,8 +377,20 @@ export const StorageService = {
       if (data.status === 'completed') nextStatus = 'partial';
       else if (data.status === 'partial') nextStatus = 'incomplete';
 
-      // Update Commitment Status
-      await setDoc(ref, { status: nextStatus, updatedAt: Date.now() }, { merge: true });
+      // Update Commitment Status. Append the transition to the audit trail and
+      // capture the FIRST completion time so the analytics dashboard can measure
+      // how long a commitment was open before it was closed.
+      const now = Date.now();
+      const statusHistory = [...(data.statusHistory || []), { status: nextStatus, at: now }];
+      const statusUpdate: Partial<Commitment> & { updatedAt: number } = {
+        status: nextStatus,
+        updatedAt: now,
+        statusHistory,
+      };
+      if (nextStatus === 'completed' && !data.completedAt) {
+        statusUpdate.completedAt = now;
+      }
+      await setDoc(ref, statusUpdate, { merge: true });
 
       // Scoring: Calculate points based on whether this is the first completion of the week
       if ((prevStatus !== 'completed' && nextStatus === 'completed') || (prevStatus === 'completed' && nextStatus !== 'completed')) {
@@ -931,6 +945,31 @@ export const StorageService = {
         const summary = snap.data().summary;
         saveLocal(key, summary); // Cache it
         return summary;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  // --- Commitment Theme Insights (AI thematic analysis, manager dashboard) ---
+  saveCommitmentThemes: async (periodKey: string, payload: any): Promise<void> => {
+    try {
+      await setDoc(doc(db, "insights", `themes-${periodKey}`), {
+        periodKey,
+        payload,
+        generatedAt: Date.now(),
+      });
+    } catch (e) {
+    }
+  },
+
+  getCommitmentThemes: async (periodKey: string): Promise<{ payload: any; generatedAt: number } | null> => {
+    try {
+      const snap = await getDoc(doc(db, "insights", `themes-${periodKey}`));
+      if (snap.exists()) {
+        const data = snap.data();
+        return { payload: data.payload, generatedAt: data.generatedAt };
       }
       return null;
     } catch (e) {

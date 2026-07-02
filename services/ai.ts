@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { StorageService } from './storage';
-import { AISuggestion, CommitmentCheckResult, LeadMeasureDefinition, CommitmentTemplate } from '../types';
+import { AISuggestion, CommitmentCheckResult, LeadMeasureDefinition, CommitmentTemplate, CommitmentThemeReport } from '../types';
 import { getTemplateCategoryLabel } from '../data/commitmentTemplates';
 
 const GEMINI_MODELS = [
@@ -411,6 +411,68 @@ export const AIService = {
         return "Unable to generate summary at this time. Rate limit reached — please try again in a few seconds.";
       }
       return "Unable to generate summary at this time.";
+    }
+  },
+
+  /**
+   * Classifies the kinds of work team members are committing to, so a manager can
+   * see at a glance what categories of task each person is choosing. Returns a
+   * structured object (overall narrative + per-member themes). Returns null when
+   * the AI key is missing or generation fails so callers can hide the panel.
+   */
+  summarizeCommitmentThemes: async (
+    byMember: { memberName: string; descriptions: string[] }[]
+  ): Promise<CommitmentThemeReport | null> => {
+    try {
+      const populated = byMember.filter(m => m.descriptions.length > 0);
+      if (populated.length === 0) return null;
+
+      const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
+      if (!apiKey) return null;
+
+      const prompt = `
+        You are analysing the weekly commitments an IT Support team has set, to help a
+        manager understand the KINDS of work each person is choosing to focus on.
+
+        For each team member, their commitment descriptions are listed below:
+        ${populated.map(m => `\n### ${m.memberName}\n${m.descriptions.map(d => `- ${d}`).join('\n')}`).join('\n')}
+
+        TASK — respond with ONLY a JSON object (no markdown, no code fences) of this exact shape:
+        {
+          "overall": "2-3 sentence plain summary of the kinds of work the team is committing to, and any categories that are over- or under-represented",
+          "perMember": [
+            { "memberName": "<name exactly as given>", "themes": ["3-5 short category labels, e.g. 'Documentation', 'Proactive maintenance', 'User training'"], "summary": "one plain sentence describing their focus" }
+          ]
+        }
+
+        Rules:
+        - British English. Plain, factual, non-judgemental. No exclamation marks.
+        - Theme labels should be 1-3 words, Title Case.
+        - Include every member listed above in perMember.
+      `;
+
+      const ai = new GoogleGenAI({ apiKey });
+      const result = await withRetryAndFallback((model) => ai.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { responseMimeType: 'application/json' },
+      }));
+
+      let text = (result as any).text || '';
+      if (!text) {
+        const candidates = (result as any)?.candidates;
+        if (candidates?.[0]?.content?.parts?.[0]?.text) {
+          text = candidates[0].content.parts[0].text;
+        }
+      }
+
+      // Strip any stray code fences before parsing.
+      const cleaned = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+      const parsed = JSON.parse(cleaned) as CommitmentThemeReport;
+      if (!parsed || !Array.isArray(parsed.perMember)) return null;
+      return parsed;
+    } catch (e) {
+      return null;
     }
   }
 };

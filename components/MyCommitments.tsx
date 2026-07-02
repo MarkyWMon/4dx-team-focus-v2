@@ -63,6 +63,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const [proofNote, setProofNote] = useState('');
   const [proofPhoto, setProofPhoto] = useState<string | null>(null);
   const [proofStatus, setProofStatus] = useState<CommitmentStatus>('completed');
+  const [proofError, setProofError] = useState<string | null>(null);
   const [proofLeadMeasure, setProofLeadMeasure] = useState<{ id: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastCheckedTextRef = useRef<string>('');
@@ -409,11 +410,12 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     }, 400);
   };
 
-  const openProofModal = (commitment: Commitment) => {
+  const openProofModal = (commitment: Commitment, presetStatus?: CommitmentStatus) => {
     setProofModalId(commitment.id);
     setProofNote(commitment.completionNote || '');
     setProofPhoto(commitment.completionPhoto || null);
-    setProofStatus(commitment.status);
+    setProofStatus(presetStatus || commitment.status);
+    setProofError(null);
     // Pre-select the lead measure if commitment already has one
     if (commitment.leadMeasureId && commitment.leadMeasureName) {
       setProofLeadMeasure({ id: commitment.leadMeasureId, name: commitment.leadMeasureName });
@@ -432,6 +434,13 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     const effectiveLeadMeasureName = proofLeadMeasure?.name || commitment?.leadMeasureName;
 
     // DEBUG: Log the scoring conditions
+
+    // REQUIRE commentary when closing (completed or partial) so there is a
+    // record of what was actually done — no more silent, insight-free closes.
+    if ((proofStatus === 'completed' || proofStatus === 'partial') && proofNote.trim().length < 3) {
+      setProofError('Please describe what you did before closing this commitment.');
+      return;
+    }
 
     // REQUIRE lead measure selection for scoring when completing
     if (proofStatus === 'completed' && !effectiveLeadMeasureId && leadMeasures.length > 0) {
@@ -825,14 +834,17 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold uppercase text-slate-600 tracking-widest mb-3">Execution Note</label>
+                <label className="block text-[10px] font-semibold uppercase text-slate-600 tracking-widest mb-3">
+                  Execution Note {(proofStatus === 'completed' || proofStatus === 'partial') && <span className="text-brand-red">(Required to close)</span>}
+                </label>
                 <textarea
-                  className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-medium focus:ring-8 focus:ring-brand-navy/5 outline-none transition-all resize-none min-h-[120px]"
-                  placeholder="What was the result? (e.g. 'Documentation updated')"
+                  className={`w-full p-6 bg-slate-50 border-2 rounded-2xl text-sm font-medium focus:ring-8 focus:ring-brand-navy/5 outline-none transition-all resize-none min-h-[120px] ${proofError ? 'border-brand-red' : 'border-slate-100'}`}
+                  placeholder="What did you actually do? (e.g. 'Rebuilt the staff onboarding doc and shared it with the team')"
                   disabled={isSaving}
                   value={proofNote}
-                  onChange={e => setProofNote(e.target.value)}
+                  onChange={e => { setProofNote(e.target.value); if (proofError) setProofError(null); }}
                 />
+                {proofError && <p className="text-brand-red text-xs font-semibold mt-2">{proofError}</p>}
               </div>
 
               <div>
@@ -1077,8 +1089,17 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
               return (
                 <div key={commitment.id} className={`flex items-center p-5 rounded-2xl border transition-all animate-fade-in ${styles.container}`}>
                   <button
-                    onClick={(e) => { e.stopPropagation(); onToggle(commitment.id); }}
-                    disabled={isEditing}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Closing must go through the proof modal so commentary is captured.
+                      // Un-completing (reopening) can stay a direct, note-free toggle.
+                      if (commitment.status === 'completed') {
+                        onToggle(commitment.id);
+                      } else {
+                        openProofModal(commitment, 'completed');
+                      }
+                    }}
+                    disabled={isEditing || isPast}
                     className={`flex-shrink-0 h-8 w-8 rounded-full border-2 flex items-center justify-center transition-all mr-5 focus:outline-none ${styles.btn}`}
                   >
                     {commitment.status === 'completed' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
