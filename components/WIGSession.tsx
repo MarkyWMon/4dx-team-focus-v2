@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TeamMember, WIGSession, WIGSessionStep, Commitment } from '../types';
+import { TeamMember, WIGSession, WIGSessionStep, Commitment, MemberReview } from '../types';
 import { StorageService } from '../services/storage';
+import { AIService } from '../services/ai';
 import { getPreviousWeekId, WIN_THRESHOLD } from '../utils';
 
 interface WIGSessionProps {
@@ -26,7 +27,64 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
     const [isReviewing, setIsReviewing] = useState(false);
     const [reviewStep, setReviewStep] = useState(1);
     const [prevCommitments, setPrevCommitments] = useState<Commitment[]>([]);
+    const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+    const [queriedIds, setQueriedIds] = useState<Record<string, string[]>>({});
+    const [savingReviewFor, setSavingReviewFor] = useState<string | null>(null);
     const timerRef = useRef<number | null>(null);
+
+    const isManager = ['ADMIN', 'MANAGER'].includes(currentUser.role);
+
+    // --- Step 2 accountability actions (manager only) ---
+    const handleConfirmCommitment = async (c: Commitment) => {
+        if (!isManager || !session) return;
+        await StorageService.updateCommitment(c.id, {
+            verifiedBy: currentUser.name,
+            verifiedAt: Date.now(),
+            verifiedInSessionId: session.id,
+        });
+    };
+
+    const handleQueryCommitment = async (c: Commitment, memberId: string) => {
+        if (!isManager || !session) return;
+        if (!confirm('Reopen this commitment as queried? It goes back to "partial" and the member is nudged to address it.')) return;
+        await StorageService.applyCommitmentStatusChange(c.id, 'partial');
+        setQueriedIds(prev => ({ ...prev, [memberId]: [...(prev[memberId] || []), c.id] }));
+    };
+
+    const handleSaveReview = async (member: TeamMember) => {
+        if (!isManager || !session) return;
+        const existing = (session.memberReviews || []).find(r => r.memberId === member.id);
+        const note = (reviewNotes[member.id] ?? existing?.note ?? '').trim();
+        if (note.length < 10) {
+            alert('Write a short note about what was discussed with this member (at least 10 characters).');
+            return;
+        }
+        setSavingReviewFor(member.id);
+        try {
+            const memberCommits = prevCommitments.filter(c => c.memberId === member.id);
+            const review: MemberReview = {
+                memberId: member.id,
+                note,
+                confirmedIds: memberCommits.filter(c => c.verifiedBy).map(c => c.id),
+                queriedIds: queriedIds[member.id] || existing?.queriedIds || [],
+            };
+            const others = (session.memberReviews || []).filter(r => r.memberId !== member.id);
+            await StorageService.updateWIGSession(session.id, { memberReviews: [...others, review] });
+
+            // Advisory AI cross-check: does the note match what the member
+            // actually committed to and reported?
+            const warning = await AIService.crossCheckReviewNote(
+                member.name,
+                note,
+                memberCommits.map(c => ({ description: c.description, completionNote: c.completionNote }))
+            );
+            if (warning) {
+                await StorageService.updateWIGSession(session.id, { memberReviews: [...others, { ...review, aiFlag: warning }] });
+            }
+        } finally {
+            setSavingReviewFor(null);
+        }
+    };
 
     useEffect(() => {
         const unsubscribe = StorageService.subscribeToWIGSessions((sessions) => {
@@ -87,6 +145,29 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
 
     const handleNextStep = async () => {
         if (!session) return;
+
+        // Step 2 gate: every completed commitment must be confirmed or queried,
+        // and every member with commitments needs a saved accountability note.
+        if (session.currentStep === 2) {
+            const problems: string[] = [];
+            members.forEach(m => {
+                const mine = prevCommitments.filter(c => c.memberId === m.id);
+                if (mine.length === 0) return;
+                const unverified = mine.filter(c => c.status === 'completed' && !c.verifiedBy);
+                if (unverified.length > 0) {
+                    problems.push(`${m.name}: ${unverified.length} completed commitment${unverified.length === 1 ? '' : 's'} not yet confirmed or queried`);
+                }
+                const review = (session.memberReviews || []).find(r => r.memberId === m.id);
+                if (!review || review.note.trim().length < 10) {
+                    problems.push(`${m.name}: no accountability note saved`);
+                }
+            });
+            if (problems.length > 0) {
+                alert('Step 2 is not complete yet:\n\n' + problems.join('\n'));
+                return;
+            }
+        }
+
         if (session.currentStep < AGENDA_STEPS.length) {
             await StorageService.updateWIGSession(session.id, { currentStep: session.currentStep + 1 });
         } else {
@@ -280,10 +361,56 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                                                                             </div>
                                                                         )}
                                                                     </div>
+                                                                    {c.status === 'completed' && (
+                                                                        c.verifiedBy ? (
+                                                                            <span className="ui-chip bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0" title={`Verified by ${c.verifiedBy}`}>Verified ✓</span>
+                                                                        ) : isManager && !isReviewing ? (
+                                                                            <span className="flex gap-1 shrink-0">
+                                                                                <button onClick={() => handleConfirmCommitment(c)} className="ui-chip bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">Confirm</button>
+                                                                                <button onClick={() => handleQueryCommitment(c, m.id)} className="ui-chip bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 transition-colors">Query</button>
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="ui-chip bg-slate-100 text-slate-400 shrink-0">Unverified</span>
+                                                                        )
+                                                                    )}
                                                                 </div>
                                                             ))
                                                         )}
                                                     </div>
+
+                                                    {memberCommits.length > 0 && (() => {
+                                                        const review = (session.memberReviews || []).find(r => r.memberId === m.id);
+                                                        return (
+                                                            <div className="pt-1">
+                                                                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Accountability note</span>
+                                                                    {review && review.note.trim().length >= 10 && <span className="ui-chip bg-emerald-50 text-emerald-700">Saved ✓</span>}
+                                                                    {review?.aiFlag && <span className="ui-chip bg-amber-50 text-amber-700">⚠ {review.aiFlag}</span>}
+                                                                </div>
+                                                                {isManager && !isReviewing ? (
+                                                                    <div className="flex gap-2">
+                                                                        <input
+                                                                            value={reviewNotes[m.id] ?? review?.note ?? ''}
+                                                                            onChange={e => setReviewNotes(prev => ({ ...prev, [m.id]: e.target.value }))}
+                                                                            placeholder="What did they say? What was agreed for next week?"
+                                                                            className="flex-grow border border-slate-200 rounded-lg px-3 py-2 text-xs bg-white focus:border-brand-navy outline-none transition-colors"
+                                                                        />
+                                                                        <button
+                                                                            onClick={() => handleSaveReview(m)}
+                                                                            disabled={savingReviewFor === m.id}
+                                                                            className="px-3 py-2 rounded-lg bg-brand-navy text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition-all shrink-0"
+                                                                        >
+                                                                            {savingReviewFor === m.id ? 'Checking…' : 'Save note'}
+                                                                        </button>
+                                                                    </div>
+                                                                ) : review?.note ? (
+                                                                    <p className="text-xs text-slate-600 italic">"{review.note}"</p>
+                                                                ) : (
+                                                                    <p className="text-[10px] text-slate-400 italic">No note yet.</p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             );
                                         })}

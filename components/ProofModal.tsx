@@ -1,6 +1,19 @@
 import React, { useRef, useState } from 'react';
 import { Commitment, CommitmentStatus, TeamMember, LeadMeasureDefinition } from '../types';
 import { StorageService } from '../services/storage';
+import { AIService } from '../services/ai';
+
+const JUNK_NOTES = new Set(['n/a', 'na', 'done', 'complete', 'completed', 'finished', 'yes', 'ok', 'okay', 'x', '-', '.', 'did it', 'all done']);
+
+// Offline fallback when the AI note check is unreachable — closing must never
+// hard-fail on connectivity.
+const heuristicNoteOk = (note: string, description: string): boolean => {
+  const t = note.trim().toLowerCase();
+  if (t.length < 15) return false;
+  if (JUNK_NOTES.has(t)) return false;
+  if (t === description.trim().toLowerCase()) return false;
+  return true;
+};
 
 interface ProofModalProps {
   commitment: Commitment;
@@ -41,11 +54,11 @@ const ProofModal: React.FC<ProofModalProps> = ({ commitment, presetStatus, leadM
     if (isSaving) return;
 
     const effectiveLeadMeasureId = leadMeasure?.id || commitment.leadMeasureId;
+    const isClosing = status === 'completed' || status === 'partial';
 
-    // Closing (completed or partial) requires commentary so there is a record
-    // of what was actually done.
-    if ((status === 'completed' || status === 'partial') && note.trim().length < 3) {
-      setError('Please describe what you did before closing this commitment.');
+    // Closing requires evidence: a meaningful note or a photo.
+    if (isClosing && !note.trim() && !photo) {
+      setError('Add a note describing what you did, or attach a photo, before closing this commitment.');
       return;
     }
     if (status === 'completed' && !effectiveLeadMeasureId && leadMeasures.length > 0) {
@@ -55,12 +68,41 @@ const ProofModal: React.FC<ProofModalProps> = ({ commitment, presetStatus, leadM
 
     setIsSaving(true);
     try {
+      // Quality gate: photo counts as evidence on its own; a note-only close is
+      // assessed by the AI (heuristic fallback when it's unreachable).
+      let proofQuality: Commitment['proofQuality'] = undefined;
+      if (isClosing) {
+        if (photo) {
+          proofQuality = 'photo';
+        } else {
+          const verdict = await AIService.assessProofNote(commitment.description, note.trim());
+          if (verdict) {
+            if (!verdict.acceptable) {
+              setError(verdict.reason || 'Say what you actually did: where, what you found, what you changed.');
+              setIsSaving(false);
+              return;
+            }
+            proofQuality = 'ai_verified';
+          } else {
+            if (!heuristicNoteOk(note, commitment.description)) {
+              setError('Say what you actually did: where, what you found, what you changed.');
+              setIsSaving(false);
+              return;
+            }
+            proofQuality = 'heuristic';
+          }
+        }
+      }
+
       const previousStatus = commitment.status;
 
       const updates: Partial<Commitment> = {
         completionNote: note,
         completionPhoto: photo || (null as any),
       };
+      if (proofQuality) {
+        updates.proofQuality = proofQuality;
+      }
       if (leadMeasure?.id) {
         updates.leadMeasureId = leadMeasure.id;
         updates.leadMeasureName = leadMeasure.name;
@@ -186,7 +228,7 @@ const ProofModal: React.FC<ProofModalProps> = ({ commitment, presetStatus, leadM
         <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex gap-3">
           <button onClick={onClose} disabled={isSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all">Cancel</button>
           <button onClick={handleSave} disabled={isSaving} className="flex-[2] py-2.5 rounded-lg bg-brand-navy text-white text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-50">
-            {isSaving ? 'Saving…' : 'Save'}
+            {isSaving ? 'Checking note…' : 'Save'}
           </button>
         </div>
       </div>

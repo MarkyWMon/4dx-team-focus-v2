@@ -1,4 +1,5 @@
 import { AppView, Commitment, TeamMember, WIGSession } from '../types';
+import { getWigDayOfWeek } from '../utils';
 
 export type NudgeSeverity = 'info' | 'warn' | 'urgent';
 
@@ -30,10 +31,15 @@ export function computeNudges(params: {
   const myWeek = commitments.filter(c => c.memberId === currentUser.id && c.weekId === currentWeekId);
   const open = myWeek.filter(c => c.status !== 'completed');
 
+  // Days elapsed since the WIG week started (0 = WIG day itself). Escalation
+  // ladder: banner from day 2, blocking interstitial from day 3.
+  const daysIntoWeek = ((new Date().getDay() - getWigDayOfWeek()) + 7) % 7;
+  const wigDayTomorrow = daysIntoWeek === 6;
+
   if (myWeek.length === 0) {
     nudges.push({
       id: 'no-commitments',
-      severity: 'warn',
+      severity: daysIntoWeek >= 2 ? 'urgent' : 'warn',
       message: "You haven't set any commitments this week yet.",
       actionLabel: 'Set commitments',
       view: AppView.MY_COMMITMENTS,
@@ -41,8 +47,10 @@ export function computeNudges(params: {
   } else if (open.length > 0) {
     nudges.push({
       id: 'open-commitments',
-      severity: 'info',
-      message: `${open.length} commitment${open.length === 1 ? '' : 's'} still open this week.`,
+      severity: wigDayTomorrow ? 'warn' : 'info',
+      message: wigDayTomorrow
+        ? `${open.length} commitment${open.length === 1 ? '' : 's'} due before tomorrow's WIG session.`
+        : `${open.length} commitment${open.length === 1 ? '' : 's'} still open this week.`,
       actionLabel: 'Review',
       view: AppView.MY_COMMITMENTS,
     });

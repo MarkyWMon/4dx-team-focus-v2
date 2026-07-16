@@ -42,6 +42,10 @@ export interface TeamMember {
   longestStreak: number;
   achievements: Achievement[];
   lastActiveWeekId?: string;
+  // Compliance: interstitial dismissals are recorded, not punished — visibility
+  // to the manager IS the consequence.
+  nudgeDismissCount?: number;
+  lastNudgeDismissedAt?: number;
 
   // Legacy fields (optional migration)
   walksCompleted?: number;
@@ -85,6 +89,12 @@ export interface Commitment {
   leadMeasureId?: string; // Linked Lead Measure (auto-set by AI or template)
   leadMeasureName?: string; // Human-readable name for display
   alignedByAI?: boolean; // True if AI validated the alignment
+  // Proof quality gate: how the completion note passed ('photo' = photo evidence)
+  proofQuality?: 'ai_verified' | 'heuristic' | 'photo';
+  // Manager verification, stamped during WIG session step 2 (manager-only fields)
+  verifiedBy?: string;
+  verifiedAt?: number;
+  verifiedInSessionId?: string;
 }
 
 export interface LeadMeasure {
@@ -227,10 +237,20 @@ export interface WIGSessionStep {
   prompt: string;
 }
 
+// Per-member accountability record captured in WIG session step 2
+export interface MemberReview {
+  memberId: string;
+  note: string;
+  confirmedIds: string[]; // Commitments the manager verified as done
+  queriedIds: string[];   // Commitments the manager reopened for questions
+  aiFlag?: string;        // AI cross-check warning, if the note didn't match
+}
+
 export interface WIGSession {
   id: string;
   weekId: string;
   runBy?: string; // Name of whoever started the session (accountability)
+  memberReviews?: MemberReview[];
   scheduledDate: number; // Timestamp
   status: 'scheduled' | 'in_progress' | 'completed';
   currentStep: number;

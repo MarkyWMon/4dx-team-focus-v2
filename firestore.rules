@@ -60,7 +60,13 @@ service cloud.firestore {
     match /commitments/{commitmentId} {
       allow read: if isCollegeUser();
       allow create: if isCollegeUser() && request.resource.data.memberId == request.auth.uid;
-      allow update: if isCollegeUser() && (resource.data.memberId == request.auth.uid || isManager());
+      // Owners can update their own commitments but can NEVER stamp manager
+      // verification fields on them; managers can do both.
+      allow update: if isManager() || (
+        isCollegeUser()
+        && resource.data.memberId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedBy', 'verifiedAt', 'verifiedInSessionId'])
+      );
       allow delete: if isCollegeUser() && (resource.data.memberId == request.auth.uid || isAdmin());
     }
 

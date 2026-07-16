@@ -53,6 +53,7 @@ const App: React.FC = () => {
   const [sessions, setSessions] = useState<WIGSession[]>([]);
   const [composerDraft, setComposerDraft] = useState<string | null>(null);
   const [showBell, setShowBell] = useState(false);
+  const [interstitialHandled, setInterstitialHandled] = useState(false);
 
   // Check for redirect result on mount
   useEffect(() => {
@@ -408,6 +409,25 @@ const App: React.FC = () => {
     ? computeNudges({ currentUser, commitments, sessions, currentWeekId: getWeekId(), isManager: isManagement })
     : [];
 
+  // Blocking interstitial for urgent obligations — shown once per day, always
+  // dismissable, but dismissals are recorded on the member record.
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const urgentNudge = nudges.find(n => n.severity === 'urgent') || null;
+  const interstitial = urgentNudge && !interstitialHandled && localStorage.getItem('4dx_interstitial_seen') !== todayKey
+    ? urgentNudge
+    : null;
+
+  const handleInterstitial = (dismissed: boolean) => {
+    localStorage.setItem('4dx_interstitial_seen', todayKey);
+    setInterstitialHandled(true);
+    if (dismissed && currentUser) {
+      StorageService.updateMember(currentUser.id, {
+        nudgeDismissCount: (currentUser.nudgeDismissCount || 0) + 1,
+        lastNudgeDismissedAt: Date.now(),
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--ui-bg)' }}>
       {/* Top bar */}
@@ -477,6 +497,31 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
+
+        {/* Compliance interstitial */}
+        {interstitial && (
+          <div className="fixed inset-0 z-[60] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
+              <h3 className="text-base font-bold text-slate-900 mb-1.5">Your week isn't set</h3>
+              <p className="text-sm text-slate-600">{interstitial.message} The team scoreboard counts on everyone's commitments being in.</p>
+              <div className="flex gap-2 mt-5">
+                <button
+                  onClick={() => handleInterstitial(true)}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-100 transition-colors"
+                >
+                  Dismiss for today
+                </button>
+                <button
+                  onClick={() => { handleInterstitial(false); setView(interstitial.view); }}
+                  className="flex-[2] py-2.5 rounded-lg bg-brand-navy text-white text-sm font-semibold hover:opacity-90 transition-all"
+                >
+                  {interstitial.actionLabel}
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-3">Dismissals are recorded and visible to your manager.</p>
+            </div>
+          </div>
+        )}
 
         <main className="flex-grow w-full max-w-6xl mx-auto px-4 py-5 pb-24 md:pb-8">
           {view === AppView.DASHBOARD && currentUser && (

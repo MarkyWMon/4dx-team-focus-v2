@@ -384,6 +384,89 @@ export const AIService = {
   },
 
   /**
+   * Judges whether a completion note is a genuine account of work done against
+   * a specific commitment — the gate that stops "N/A" / "done" closes.
+   * Returns null when the AI is unavailable so the caller can fall back to a
+   * local heuristic.
+   */
+  assessProofNote: async (
+    commitmentText: string,
+    note: string
+  ): Promise<{ acceptable: boolean; reason: string } | null> => {
+    try {
+      if (!isAIAvailable()) return null;
+
+      const prompt = `
+        A member of an IT support team is closing out this weekly commitment:
+        "${commitmentText}"
+
+        Their completion note is:
+        "${note}"
+
+        Judge whether the note is a GENUINE, specific account of work actually done
+        against that commitment. Reject notes that are placeholders ("N/A", "done",
+        "completed", single words, punctuation), that merely restate the commitment
+        text, or that could apply to any task without saying what was actually done.
+        Accept short notes as long as they contain at least one concrete specific
+        (a place, a system, a finding, an action taken).
+
+        Return ONLY JSON:
+        {
+          "acceptable": boolean,
+          "reason": "If not acceptable: one plain-English sentence telling them what to add (British English, direct, not preachy). Empty string if acceptable."
+        }
+      `;
+
+      const text = await withRetryAndFallback((model) => callGemini(model, prompt, true));
+      const parsed = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
+      if (typeof parsed?.acceptable !== 'boolean') return null;
+      return { acceptable: parsed.acceptable, reason: String(parsed.reason || '') };
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
+   * Compares a manager's WIG-session review note against what the member
+   * actually committed to and reported, to catch rubber-stamping. Advisory:
+   * returns a warning string or null when consistent/unavailable.
+   */
+  crossCheckReviewNote: async (
+    memberName: string,
+    note: string,
+    commitments: { description: string; completionNote?: string }[]
+  ): Promise<string | null> => {
+    try {
+      if (!isAIAvailable() || commitments.length === 0) return null;
+
+      const prompt = `
+        During a 4DX WIG session, a manager wrote this accountability note about ${memberName}:
+        "${note}"
+
+        ${memberName}'s actual commitments last week (with their own completion notes):
+        ${commitments.map(c => `- "${c.description}"${c.completionNote ? ` (member's note: "${c.completionNote}")` : ''}`).join('\n')}
+
+        Does the manager's note plausibly relate to these commitments? Flag it only
+        if the note describes clearly DIFFERENT work, contradicts the member's own
+        account, or is a contentless rubber-stamp ("all good", "fine").
+
+        Return ONLY JSON:
+        {
+          "consistent": boolean,
+          "warning": "If not consistent: one short, neutral sentence for the manager to double-check (British English). Empty string if consistent."
+        }
+      `;
+
+      const text = await withRetryAndFallback((model) => callGemini(model, prompt, true));
+      const parsed = JSON.parse(text.replace(/```json/g, '').replace(/```/g, '').trim());
+      if (parsed?.consistent === false && parsed.warning) return String(parsed.warning);
+      return null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  /**
    * Classifies the kinds of work team members are committing to, so a manager can
    * see at a glance what categories of task each person is choosing. Returns a
    * structured object (overall narrative + per-member themes). Returns null when
