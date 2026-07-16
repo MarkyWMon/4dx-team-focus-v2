@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppView, TeamMember, Commitment, LeadMeasure, Ticket, WIGConfig, CommitmentTemplate, BrandingConfig, DEFAULT_BRANDING, Achievement, SurveyResult } from './types';
+import { AppView, TeamMember, Commitment, LeadMeasure, Ticket, WIGConfig, CommitmentTemplate, BrandingConfig, DEFAULT_BRANDING, Achievement, SurveyResult, WIGSession } from './types';
+import { computeNudges } from './services/obligations';
+import Home from './components/Home';
 import { StorageService } from './services/storage';
 import { WHDService } from './services/whd';
 import { AIService } from './services/ai';
 import { GamificationService } from './services/gamification';
 import { getWeekId, getPreviousWeekId, getNextWeekId, setWigDayOfWeek } from './utils';
 import { auth, onAuthStateChanged, signOut, getRedirectResult } from './services/firebase';
-import Dashboard from './components/Dashboard';
 import MyCommitments from './components/MyCommitments';
 import TeamManagement from './components/TeamManagement';
 import CommitmentHistory from './components/CommitmentHistory';
@@ -49,7 +50,9 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [sessions, setSessions] = useState<WIGSession[]>([]);
+  const [composerDraft, setComposerDraft] = useState<string | null>(null);
+  const [showBell, setShowBell] = useState(false);
 
   // Check for redirect result on mount
   useEffect(() => {
@@ -180,7 +183,10 @@ const App: React.FC = () => {
       hasSeeded.current = true;
     }
 
+    const unsubSessions = StorageService.subscribeToWIGSessions(setSessions);
+
     return () => {
+      unsubSessions();
       unsubMembers();
       unsubCommitments();
       unsubWIG();
@@ -387,115 +393,108 @@ const App: React.FC = () => {
 
   const isManagement = currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
 
-  return (
-    <div className="min-h-screen flex bg-slate-50 overflow-hidden">
-      {/* Sidebar - Cemdash Inspired */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-100 transition-transform duration-300 transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
-        <div className="h-full flex flex-col p-6">
-          {/* Logo / Brand */}
-          <div className="mb-10 cursor-pointer group flex items-center gap-3" onClick={() => setView(AppView.DASHBOARD)}>
-            {branding.logoUrl ? (
-              <img src={branding.logoUrl} alt="Logo" className="h-8 w-auto object-contain" />
-            ) : (
-              <div className="bg-brand-red h-10 w-10 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-cem group-hover:bg-brand-navy transition-colors">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              </div>
-            )}
-            <div className="flex flex-col">
-              <h1 className="text-xl font-black text-slate-900 tracking-tighter uppercase leading-none italic">
-                {branding.logoUrl ? '' : 'BHASVIC'}
-              </h1>
-              <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-0.5">Focus Platform</p>
-            </div>
-          </div>
+  const navItems: Array<{ id: AppView; label: string; short: string; icon: string }> = [
+    { id: AppView.DASHBOARD, label: 'Home', short: 'Home', icon: 'M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3m10-11v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+    { id: AppView.MY_COMMITMENTS, label: 'Commitments', short: 'Commit', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+    { id: AppView.WIG_SESSION, label: 'WIG Session', short: 'WIG', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
+    { id: AppView.SURVEYS, label: 'Analytics', short: 'Stats', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+    ...(isManagement ? [
+      { id: AppView.COMMITMENT_ANALYTICS, label: 'Insights', short: 'Insights', icon: 'M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+      { id: AppView.TEAM_MANAGEMENT, label: 'Team', short: 'Team', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' },
+    ] : []),
+  ];
 
-          {/* Navigation Items */}
-          <nav className="flex-grow space-y-1">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 ml-2">Main Menu</p>
-            {[
-              { id: AppView.DASHBOARD, label: 'Dashboard', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
-              { id: AppView.MY_COMMITMENTS, label: 'Commitments', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-              { id: AppView.WIG_SESSION, label: 'WIG Session', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-              { id: AppView.SURVEYS, label: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-              ...(isManagement ? [
-                { id: AppView.COMMITMENT_ANALYTICS, label: 'Commitment Insights', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-                { id: AppView.TEAM_MANAGEMENT, label: 'Team Portal', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' }
-              ] : [])
-            ].map(item => (
+  const nudges = currentUser
+    ? computeNudges({ currentUser, commitments, sessions, currentWeekId: getWeekId(), isManager: isManagement })
+    : [];
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--ui-bg)' }}>
+      {/* Top bar */}
+      <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-1">
+          <button onClick={() => setView(AppView.DASHBOARD)} className="flex items-center gap-2 mr-2 shrink-0">
+            {branding.logoUrl ? (
+              <img src={branding.logoUrl} alt="Logo" className="h-7 w-auto object-contain" />
+            ) : (
+              <span className="h-7 w-7 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: 'var(--primary-color)' }}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              </span>
+            )}
+            <span className="hidden sm:block text-sm font-bold text-slate-900 tracking-tight">BHASVIC 4DX</span>
+          </button>
+
+          <nav className="hidden md:flex items-center gap-0.5">
+            {navItems.map(item => (
               <button
                 key={item.id}
-                onClick={() => { setView(item.id as AppView); setIsMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-xs tracking-tight transition-all ${view === item.id ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-100'}`}
-                style={view === item.id ? { backgroundColor: branding.primaryColor } : {}}
+                onClick={() => setView(item.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${view === item.id ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
               >
-                <svg className="w-5 h-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} /></svg>
                 {item.label}
               </button>
             ))}
           </nav>
 
-          {/* User Profile / Bottom */}
-          <div className="mt-auto pt-6 border-t border-slate-100">
+          <div className="ml-auto flex items-center gap-1.5">
+            <button onClick={handleExport} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-50 transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              Export
+            </button>
+
+            {/* Nudge inbox */}
+            <div className="relative">
+              <button onClick={() => setShowBell(v => !v)} className="relative p-2 text-slate-500 hover:text-slate-900 transition-colors" aria-label="Notifications">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                {nudges.length > 0 && (
+                  <span className="absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full bg-brand-red text-white text-[9px] font-bold flex items-center justify-center ui-metric">{nudges.length}</span>
+                )}
+              </button>
+              {showBell && (
+                <div className="absolute right-0 top-10 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-1.5 z-50">
+                  {nudges.length === 0 ? (
+                    <p className="text-xs text-slate-400 p-3">You're all caught up.</p>
+                  ) : (
+                    nudges.map(n => (
+                      <button key={n.id} onClick={() => { setView(n.view); setShowBell(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                        <p className="text-xs font-medium text-slate-700">{n.message}</p>
+                        <p className="text-[10px] font-semibold mt-0.5" style={{ color: 'var(--secondary-color)' }}>{n.actionLabel} →</p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             {currentUser && (
-              <div className="flex items-center gap-3 px-2">
-                <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-xs border border-slate-200">
-                  {currentUser.avatar || currentUser.name.substring(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-grow overflow-hidden">
-                  <p className="text-xs font-black text-slate-900 truncate tracking-tight leading-none mb-1">{currentUser.name}</p>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">{currentUser.role}</p>
-                </div>
+              <div className="flex items-center gap-2 pl-1.5 border-l border-slate-200">
+                <span className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-[10px] uppercase">
+                  {currentUser.avatar || currentUser.name.substring(0, 2)}
+                </span>
                 <ProfileDropdown currentUser={currentUser} onLogout={handleLogout} />
               </div>
             )}
           </div>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Content Area */}
-      <div className="flex-grow md:ml-64 min-h-screen flex flex-col">
-        {/* Mobile Header */}
-        <header className="md:hidden h-16 bg-white border-b border-slate-100 flex justify-between items-center px-6 sticky top-0 z-40">
-          <h1 className="text-sm font-black text-slate-900 uppercase italic tracking-tighter">BHASVIC</h1>
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-slate-600">
-            {isMobileMenuOpen ? (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            ) : (
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-            )}
-          </button>
-        </header>
-
-        {/* Dynamic View Header (Inspired by Cemdash Dashboard Title Row) */}
-        <header className="h-20 flex items-center justify-between px-8 bg-white/50 backdrop-blur-sm border-b border-slate-100/50 sticky top-0 z-30">
-          <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight uppercase italic">{view.replace('_', ' ')}</h2>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">BHASVIC Strategy Lab</p>
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Action Buttons inspired by Cemdash top right */}
-            <div className="hidden sm:flex items-center gap-2">
-              <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors bg-white rounded-lg border border-slate-100"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg></button>
-              <div className="h-8 w-px bg-slate-100 mx-2"></div>
-              <button onClick={handleExport} className="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Export CSV
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <main className="p-8 flex-grow">
+        <main className="flex-grow w-full max-w-6xl mx-auto px-4 py-5 pb-24 md:pb-8">
           {view === AppView.DASHBOARD && currentUser && (
-            <Dashboard
+            <Home
               currentUser={currentUser}
               members={members}
-              wigConfig={wigConfig}
               commitments={commitments}
-              tickets={tickets}
               surveys={surveys}
               surveyStartDate={surveyStartDate}
+              wigConfig={wigConfig}
+              sessions={sessions}
+              nudges={nudges}
               onNavigate={setView}
+              onComposerSubmit={(text) => {
+                setComposerDraft(text);
+                setSelectedWeekId(getWeekId());
+                setView(AppView.MY_COMMITMENTS);
+              }}
             />
           )}
           {view === AppView.MY_COMMITMENTS && currentUser && (
@@ -509,6 +508,8 @@ const App: React.FC = () => {
               templates={templates}
               wigConfig={wigConfig}
               members={members}
+              initialDraft={composerDraft || undefined}
+              onDraftConsumed={() => setComposerDraft(null)}
               onAdd={(desc, leadMeasureId, leadMeasureName, alignedByAI) => StorageService.addCommitment(currentUser.id, selectedWeekId, desc, leadMeasureId, leadMeasureName, alignedByAI)}
               onToggle={(id) => StorageService.cycleCommitmentStatus(id)}
               onUpdate={(id, up) => StorageService.updateCommitment(id, up)}
@@ -567,17 +568,32 @@ const App: React.FC = () => {
           )}
         </main>
 
-        <footer className="py-8 text-center border-t border-slate-100 bg-white">
-          <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest opacity-60">BHASVIC IT Support Strategy Framework &copy; {new Date().getFullYear()}</p>
+        <footer className="hidden md:block py-6 text-center">
+          <p className="text-[10px] font-semibold text-slate-300 uppercase tracking-widest">BHASVIC IT Support Strategy Framework &copy; {new Date().getFullYear()}</p>
         </footer>
-      </div>
-      {/* Achievement Toast */}
-      {activeAchievement && (
-        <AchievementToast
-          achievement={activeAchievement}
-          onClose={() => setActiveAchievement(null)}
-        />
-      )}
+
+        {/* Mobile bottom tabs */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 flex" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => setView(item.id)}
+              className={`flex-1 flex flex-col items-center gap-0.5 pt-2 pb-1.5 text-[9px] font-bold transition-colors ${view === item.id ? '' : 'text-slate-400'}`}
+              style={view === item.id ? { color: 'var(--secondary-color)' } : {}}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={item.icon} /></svg>
+              {item.short}
+            </button>
+          ))}
+        </nav>
+
+        {/* Achievement Toast */}
+        {activeAchievement && (
+          <AchievementToast
+            achievement={activeAchievement}
+            onClose={() => setActiveAchievement(null)}
+          />
+        )}
     </div>
   );
 };

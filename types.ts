@@ -230,6 +230,7 @@ export interface WIGSessionStep {
 export interface WIGSession {
   id: string;
   weekId: string;
+  runBy?: string; // Name of whoever started the session (accountability)
   scheduledDate: number; // Timestamp
   status: 'scheduled' | 'in_progress' | 'completed';
   currentStep: number;

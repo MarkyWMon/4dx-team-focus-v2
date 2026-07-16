@@ -76,7 +76,7 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                 currentStep: 1
             });
         } else {
-            const id = await StorageService.createWIGSession(currentWeekId);
+            const id = await StorageService.createWIGSession(currentWeekId, currentUser.name);
             await StorageService.updateWIGSession(id, {
                 status: 'in_progress',
                 startedAt: Date.now(),

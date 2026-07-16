@@ -473,11 +473,12 @@ export const StorageService = {
     await deleteDoc(doc(db, "commitments", id));
   },
 
-  createWIGSession: async (weekId: string): Promise<string> => {
+  createWIGSession: async (weekId: string, runBy?: string): Promise<string> => {
     const id = `wig-${weekId}-${Date.now()}`;
     const newSession: WIGSession = {
       id,
       weekId,
+      runBy,
       scheduledDate: Date.now(),
       status: 'scheduled',
       currentStep: 1,

@@ -5,6 +5,7 @@ import { formatWeekDisplay, isPastWeek, formatDateShort, getPreviousWeekId } fro
 import { AIService } from '../services/ai';
 import { StorageService } from '../services/storage';
 import TemplateLibrary from './TemplateLibrary';
+import ProofModal from './ProofModal';
 
 interface MyCommitmentsProps {
   currentUser: TeamMember;
@@ -17,6 +18,9 @@ interface MyCommitmentsProps {
   templates?: CommitmentTemplate[];
   wigConfig?: WIGConfig | null; // For lead measures
   members?: TeamMember[]; // For auto-scoring updates
+  // A draft handed over from the Home composer — auto-submitted on arrival.
+  initialDraft?: string;
+  onDraftConsumed?: () => void;
   onAdd: (desc: string, leadMeasureId?: string, leadMeasureName?: string, alignedByAI?: boolean) => void;
   onToggle: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Commitment>) => void;
@@ -36,6 +40,8 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   templates = [],
   wigConfig,
   members = [],
+  initialDraft,
+  onDraftConsumed,
   onAdd,
   onToggle,
   onUpdate,
@@ -46,7 +52,6 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const [newCommitment, setNewCommitment] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [checkResult, setCheckResult] = useState<CommitmentCheckResult | null>(null);
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -58,14 +63,8 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  // Proof Modal State
-  const [proofModalId, setProofModalId] = useState<string | null>(null);
-  const [proofNote, setProofNote] = useState('');
-  const [proofPhoto, setProofPhoto] = useState<string | null>(null);
-  const [proofStatus, setProofStatus] = useState<CommitmentStatus>('completed');
-  const [proofError, setProofError] = useState<string | null>(null);
-  const [proofLeadMeasure, setProofLeadMeasure] = useState<{ id: string; name: string } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Proof Modal (shared component) — holds the commitment being closed out
+  const [proofTarget, setProofTarget] = useState<{ commitment: Commitment; preset?: CommitmentStatus } | null>(null);
   const lastCheckedTextRef = useRef<string>('');
 
   // Validation Modal State (for custom commitments)
@@ -82,8 +81,13 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommitment.trim() || isFull) return;
+    await submitCommitment(newCommitment);
+  };
 
-    const trimmed = newCommitment.trim();
+  // Shared entry point for the form above and the Home-page composer handoff.
+  const submitCommitment = async (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed || isFull) return;
 
     // Detect if pasted/typed text matches a known template description.
     // Templates are pre-vetted, so skip AI and route straight to lead-measure picker.
@@ -274,6 +278,22 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     }
   }, [cachedSuggestions]);
 
+  // Home-page composer handoff: auto-submit the draft through the same
+  // validated pipeline as the form. Ref guard prevents StrictMode double-fire.
+  const draftConsumedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialDraft) {
+      draftConsumedRef.current = null;
+      return;
+    }
+    if (draftConsumedRef.current === initialDraft) return;
+    draftConsumedRef.current = initialDraft;
+    onDraftConsumed?.();
+    if (!isPast) {
+      submitCommitment(initialDraft);
+    }
+  }, [initialDraft]);
+
   const handleGenerateSuggestions = async () => {
     if (suggestions.length > 0) {
       setShowSuggestions(true);
@@ -415,101 +435,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   };
 
   const openProofModal = (commitment: Commitment, presetStatus?: CommitmentStatus) => {
-    setProofModalId(commitment.id);
-    setProofNote(commitment.completionNote || '');
-    setProofPhoto(commitment.completionPhoto || null);
-    setProofStatus(presetStatus || commitment.status);
-    setProofError(null);
-    // Pre-select the lead measure if commitment already has one
-    if (commitment.leadMeasureId && commitment.leadMeasureName) {
-      setProofLeadMeasure({ id: commitment.leadMeasureId, name: commitment.leadMeasureName });
-    } else {
-      setProofLeadMeasure(null);
-    }
-    setIsSaving(false);
-  };
-
-  const handleSaveProof = async () => {
-    if (!proofModalId || isSaving) return;
-
-    // Determine which lead measure to use
-    const commitment = commitments.find(c => c.id === proofModalId);
-    const effectiveLeadMeasureId = proofLeadMeasure?.id || commitment?.leadMeasureId;
-    const effectiveLeadMeasureName = proofLeadMeasure?.name || commitment?.leadMeasureName;
-
-    // DEBUG: Log the scoring conditions
-
-    // REQUIRE commentary when closing (completed or partial) so there is a
-    // record of what was actually done — no more silent, insight-free closes.
-    if ((proofStatus === 'completed' || proofStatus === 'partial') && proofNote.trim().length < 3) {
-      setProofError('Please describe what you did before closing this commitment.');
-      return;
-    }
-
-    // REQUIRE lead measure selection for scoring when completing
-    if (proofStatus === 'completed' && !effectiveLeadMeasureId && leadMeasures.length > 0) {
-      alert('Please select a Lead Measure before marking as completed. This enables auto-scoring on the Dashboard.');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const previousStatus = commitment?.status;
-
-      // Notes, photo, AND lead measure if newly selected. The status itself
-      // goes through applyCommitmentStatusChange so the audit trail and
-      // gamification points are applied — the same path as the checkbox.
-      const updates: Partial<Commitment> = {
-        completionNote: proofNote,
-        completionPhoto: proofPhoto || null as any
-      };
-
-      // If user selected a lead measure (especially for legacy commitments), save it
-      if (proofLeadMeasure?.id) {
-        updates.leadMeasureId = proofLeadMeasure.id;
-        updates.leadMeasureName = proofLeadMeasure.name;
-        updates.alignedByAI = false; // Manual assignment
-      }
-
-      await StorageService.applyCommitmentStatusChange(proofModalId, proofStatus, updates);
-
-      // AUTO-SCORING: Update lead measure scorecard when status changes
-      if (effectiveLeadMeasureId && proofStatus !== previousStatus) {
-        const currentProgress = currentUser.leadMeasureProgress?.[effectiveLeadMeasureId] || 0;
-
-        // Increment if newly completed, decrement if un-completed
-        if (proofStatus === 'completed' && previousStatus !== 'completed') {
-          const newProgress = currentProgress + 1;
-          await StorageService.updateMemberMetrics(currentUser.id, {
-            leadMeasureProgress: { ...currentUser.leadMeasureProgress, [effectiveLeadMeasureId]: newProgress }
-          });
-        } else if (previousStatus === 'completed' && proofStatus !== 'completed') {
-          const newProgress = Math.max(0, currentProgress - 1);
-          await StorageService.updateMemberMetrics(currentUser.id, {
-            leadMeasureProgress: { ...currentUser.leadMeasureProgress, [effectiveLeadMeasureId]: newProgress }
-          });
-        }
-      } else {
-      }
-
-      setProofModalId(null);
-      setProofLeadMeasure(null);
-    } catch (e) {
-      alert("Encountered an error while saving. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProofPhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    setProofTarget({ commitment, preset: presetStatus });
   };
 
   const renderRichDescription = (text: string, isWhite = false) => {
@@ -782,108 +708,15 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
         </div>
       )}
 
-      {/* Proof Modal */}
-      {proofModalId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-navy bg-opacity-95 backdrop-blur-md">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-xl shadow-2xl animate-fade-in overflow-hidden border-4 border-white">
-            <div className="p-8 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-bold text-brand-navy uppercase tracking-tight">Commitment Detail</h3>
-                <p className="text-slate-600 text-[10px] font-semibold uppercase tracking-widest mt-1">Impact verification</p>
-              </div>
-              <button onClick={() => setProofModalId(null)} className="text-slate-300 hover:text-brand-red transition-colors">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <div className="p-8 space-y-6">
-              <div>
-                <label className="block text-[10px] font-semibold uppercase text-slate-600 tracking-widest mb-3">Status of Progress</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['incomplete', 'partial', 'completed'] as CommitmentStatus[]).map(s => (
-                    <button
-                      key={s}
-                      disabled={isSaving}
-                      onClick={() => setProofStatus(s)}
-                      className={`py-3 rounded-xl font-bold uppercase text-[10px] transition-all border-2 ${proofStatus === s ? (s === 'completed' ? 'bg-brand-green border-brand-green text-white shadow-lg' : s === 'partial' ? 'bg-brand-orange border-brand-orange text-white shadow-lg' : 'bg-brand-red border-brand-red text-white shadow-lg') : 'bg-white border-slate-100 text-slate-600'}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Lead Measure Selector - for scoring */}
-              <div>
-                <label className="block text-[10px] font-semibold uppercase text-slate-600 tracking-widest mb-3">
-                  Lead Measure {proofLeadMeasure ? '✓' : '(Required for scoring)'}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {leadMeasures.map(m => (
-                    <button
-                      key={m.id}
-                      disabled={isSaving}
-                      onClick={() => setProofLeadMeasure({ id: m.id, name: m.name })}
-                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border-2 ${proofLeadMeasure?.id === m.id
-                        ? 'bg-brand-navy border-brand-navy text-white shadow-lg'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-brand-navy'
-                        }`}
-                    >
-                      {m.name}
-                    </button>
-                  ))}
-                </div>
-                {!proofLeadMeasure && (
-                  <p className="text-amber-600 text-xs mt-2">Select a Lead Measure to enable auto-scoring when you complete this commitment.</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-semibold uppercase text-slate-600 tracking-widest mb-3">
-                  Execution Note {(proofStatus === 'completed' || proofStatus === 'partial') && <span className="text-brand-red">(Required to close)</span>}
-                </label>
-                <textarea
-                  className={`w-full p-6 bg-slate-50 border-2 rounded-2xl text-sm font-medium focus:ring-8 focus:ring-brand-navy/5 outline-none transition-all resize-none min-h-[120px] ${proofError ? 'border-brand-red' : 'border-slate-100'}`}
-                  placeholder="What did you actually do? (e.g. 'Rebuilt the staff onboarding doc and shared it with the team')"
-                  disabled={isSaving}
-                  value={proofNote}
-                  onChange={e => { setProofNote(e.target.value); if (proofError) setProofError(null); }}
-                />
-                {proofError && <p className="text-brand-red text-xs font-semibold mt-2">{proofError}</p>}
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-semibold uppercase text-slate-600 tracking-widest mb-3">Impact Photo</label>
-                <div
-                  onClick={() => !isSaving && fileInputRef.current?.click()}
-                  className="cursor-pointer group relative h-48 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center overflow-hidden transition-all hover:border-brand-navy"
-                >
-                  {proofPhoto ? (
-                    <>
-                      <img src={proofPhoto} alt="Proof" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-semibold uppercase tracking-widest">
-                        Change Photo
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center">
-                      <svg className="w-12 h-12 text-slate-300 mb-2 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                      <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Evidence Upload</p>
-                    </div>
-                  )}
-                  <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handlePhotoUpload} className="hidden" />
-                </div>
-              </div>
-            </div>
-
-            <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
-              <button onClick={() => setProofModalId(null)} className="flex-1 py-5 rounded-2xl font-bold uppercase text-xs text-slate-600 hover:bg-slate-100 transition-all tracking-widest">Cancel</button>
-              <button onClick={handleSaveProof} disabled={isSaving} className="flex-[2] py-5 rounded-2xl bg-brand-navy text-white font-bold uppercase text-xs shadow-xl hover:bg-black transition-all tracking-widest disabled:opacity-50">
-                {isSaving ? 'Saving...' : 'Update Commitment'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Proof Modal (shared component) */}
+      {proofTarget && (
+        <ProofModal
+          commitment={proofTarget.commitment}
+          presetStatus={proofTarget.preset}
+          leadMeasures={leadMeasures}
+          currentUser={currentUser}
+          onClose={() => setProofTarget(null)}
+        />
       )}
 
       {/* Week Navigation Header */}
