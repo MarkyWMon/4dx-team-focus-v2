@@ -1,5 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
 import { StorageService } from './storage';
+import { auth } from './firebase';
 import { AISuggestion, CommitmentCheckResult, LeadMeasureDefinition, CommitmentTemplate, CommitmentThemeReport } from '../types';
 import { getTemplateCategoryLabel } from '../data/commitmentTemplates';
 
@@ -66,6 +66,35 @@ async function withRetryAndFallback<T>(
   // All models exhausted — start cooldown to prevent hammering
   startRateLimitCooldown();
   throw lastError;
+}
+
+/**
+ * Calls Gemini through the authenticated Cloud Run proxy. The API key lives
+ * server-side only; the caller must be signed in.
+ */
+async function callGemini(model: string, prompt: string, jsonMode: boolean): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not signed in.');
+  const token = await user.getIdToken();
+  const base = import.meta.env.DEV ? '/api/whd-proxy' : StorageService.getProxyBaseUrl();
+  const res = await fetch(`${base}/ai`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ model, prompt, json: jsonMode })
+  });
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => '');
+    const err: any = new Error(`AI proxy error ${res.status}: ${bodyText.slice(0, 200)}`);
+    err.status = res.status;
+    throw err;
+  }
+  const data = await res.json();
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  return parts.map((p: any) => p?.text || '').join('');
+}
+
+function isAIAvailable(): boolean {
+  return !!auth.currentUser;
 }
 
 export const AIService = {
@@ -147,32 +176,11 @@ export const AIService = {
         ]
       `;
 
-      // Always initialize with Vite environment variable
-      const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
-      if (!apiKey) {
+      if (!isAIAvailable()) {
         return [];
       }
-      const ai = new GoogleGenAI({ apiKey });
 
-      const startTime = Date.now();
-      const result = await withRetryAndFallback((model) => ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { responseMimeType: "application/json" }
-      }));
-
-
-      // Robust text extraction
-      let text = '';
-      try {
-        text = result.response?.text?.() || (result as any).text || '';
-        if (!text && result.response?.candidates?.[0]?.content?.parts?.[0]?.text) {
-          text = result.response.candidates[0].content.parts[0].text;
-        }
-      } catch (e) {
-        text = (result as any).text || '';
-      }
-
+      const text = await withRetryAndFallback((model) => callGemini(model, prompt, true));
       if (!text) {
         return [];
       }
@@ -255,20 +263,12 @@ export const AIService = {
         }
       `;
 
-      const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
-      if (!apiKey) {
+      if (!isAIAvailable()) {
         return null;
       }
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await withRetryAndFallback((model) => ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json"
-        }
-      }));
+      const text = await withRetryAndFallback((model) => callGemini(model, prompt, true));
 
-      const resultText = response.text?.trim() || '{}';
+      const resultText = text.replace(/```json/g, '').replace(/```/g, '').trim() || '{}';
       return JSON.parse(resultText);
     } catch (e) {
       return null;
@@ -321,23 +321,10 @@ export const AIService = {
         ]
       `;
 
-      const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
-      const ai = new GoogleGenAI({ apiKey });
-      const result = await withRetryAndFallback((model) => ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { responseMimeType: "application/json" }
-      }));
-
-      let text = '';
-      try {
-        text = result.response?.text?.() || (result as any).text || '';
-        if (!text && result.response?.candidates?.[0]?.content?.parts?.[0]?.text) {
-          text = result.response.candidates[0].content.parts[0].text;
-        }
-      } catch (e) {
-        text = (result as any).text || '';
+      if (!isAIAvailable()) {
+        return [];
       }
+      const text = await withRetryAndFallback((model) => callGemini(model, prompt, true));
 
       const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(cleanText || '[]');
@@ -380,28 +367,10 @@ export const AIService = {
         - No markdown formatting, just plain text.
       `;
 
-      const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
-      if (!apiKey) {
-        return "Unable to generate summary — AI API key not configured.";
+      if (!isAIAvailable()) {
+        return "Unable to generate summary — you must be signed in.";
       }
-      const ai = new GoogleGenAI({ apiKey });
-      const result = await withRetryAndFallback((model) => ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      }));
-
-
-      let text = (result as any).text || '';
-      if (!text) {
-        try {
-          // Fallback: extract from candidates
-          const candidates = (result as any)?.candidates;
-          if (candidates?.[0]?.content?.parts?.[0]?.text) {
-            text = candidates[0].content.parts[0].text;
-          }
-        } catch (e) {
-        }
-      }
+      const text = await withRetryAndFallback((model) => callGemini(model, prompt, false));
 
       const finalSummary = text.trim() || "Great work team! (AI generation produced empty result)";
       return finalSummary;
@@ -427,8 +396,7 @@ export const AIService = {
       const populated = byMember.filter(m => m.descriptions.length > 0);
       if (populated.length === 0) return null;
 
-      const apiKey = import.meta.env.VITE_GOOGLE_AI_API_KEY;
-      if (!apiKey) return null;
+      if (!isAIAvailable()) return null;
 
       const prompt = `
         You are analysing the weekly commitments an IT Support team has set, to help a
@@ -451,20 +419,7 @@ export const AIService = {
         - Include every member listed above in perMember.
       `;
 
-      const ai = new GoogleGenAI({ apiKey });
-      const result = await withRetryAndFallback((model) => ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { responseMimeType: 'application/json' },
-      }));
-
-      let text = (result as any).text || '';
-      if (!text) {
-        const candidates = (result as any)?.candidates;
-        if (candidates?.[0]?.content?.parts?.[0]?.text) {
-          text = candidates[0].content.parts[0].text;
-        }
-      }
+      const text = await withRetryAndFallback((model) => callGemini(model, prompt, true));
 
       // Strip any stray code fences before parsing.
       const cleaned = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();

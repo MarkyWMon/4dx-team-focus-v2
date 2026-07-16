@@ -1,0 +1,5 @@
+# Only the proxy needs to reach Cloud Build.
+*
+!main.py
+!requirements.txt
+!Dockerfile

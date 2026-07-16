@@ -1,5 +1,5 @@
 
-import { TeamMember, Commitment, LoginLog, Ticket, ChangeRequest, CategoryInsight, LeadMeasureLog, CommitmentStatus, WIGSession, AISuggestion, CommitmentTemplate, WIGConfig, BrandingConfig, DEFAULT_BRANDING, Achievement, ActivityEvent } from '../types';
+import { TeamMember, Commitment, LoginLog, Ticket, ChangeRequest, CategoryInsight, LeadMeasureLog, CommitmentStatus, WIGSession, AISuggestion, CommitmentTemplate, WIGConfig, BrandingConfig, DEFAULT_BRANDING, Achievement, ActivityEvent, SurveyResult } from '../types';
 import { db, auth } from './firebase';
 import { GamificationService } from './gamification';
 import {
@@ -343,7 +343,8 @@ export const StorageService = {
     weekId: string,
     description: string,
     leadMeasureId?: string,
-    leadMeasureName?: string
+    leadMeasureName?: string,
+    alignedByAI: boolean = false
   ): Promise<void> => {
     if (!memberId) throw new Error("No memberId provided for commitment.");
     const id = `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -354,7 +355,9 @@ export const StorageService = {
       statusHistory: [{ status: 'incomplete', at: now }],
       leadMeasureId: leadMeasureId || undefined,
       leadMeasureName: leadMeasureName || undefined,
-      alignedByAI: !!leadMeasureId, // True if we have a linked measure
+      // Only true when the AI actually validated the alignment — a manually
+      // or keyword-assigned measure is NOT AI alignment.
+      alignedByAI,
     };
     await setDoc(doc(db, "commitments", id), newCommitment);
   },
@@ -368,60 +371,70 @@ export const StorageService = {
   },
 
   cycleCommitmentStatus: async (id: string): Promise<void> => {
+    const snap = await getDoc(doc(db, "commitments", id));
+    if (!snap.exists()) return;
+    const data = snap.data() as Commitment;
+    let nextStatus: CommitmentStatus = 'completed';
+    if (data.status === 'completed') nextStatus = 'partial';
+    else if (data.status === 'partial') nextStatus = 'incomplete';
+    await StorageService.applyCommitmentStatusChange(id, nextStatus);
+  },
+
+  /**
+   * The single path for EVERY commitment status change (checkbox toggle and
+   * Proof Modal alike). Appends the transition to the audit trail, captures the
+   * FIRST completion time, and awards/removes gamification points — so no
+   * route can close a commitment without scoring it.
+   */
+  applyCommitmentStatusChange: async (
+    id: string,
+    nextStatus: CommitmentStatus,
+    extraUpdates: Partial<Commitment> = {}
+  ): Promise<void> => {
     const ref = doc(db, "commitments", id);
     const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const data = snap.data() as Commitment;
-      const prevStatus = data.status;
-      let nextStatus: CommitmentStatus = 'completed';
-      if (data.status === 'completed') nextStatus = 'partial';
-      else if (data.status === 'partial') nextStatus = 'incomplete';
+    if (!snap.exists()) return;
+    const data = snap.data() as Commitment;
+    const prevStatus = data.status;
 
-      // Update Commitment Status. Append the transition to the audit trail and
-      // capture the FIRST completion time so the analytics dashboard can measure
-      // how long a commitment was open before it was closed.
-      const now = Date.now();
-      const statusHistory = [...(data.statusHistory || []), { status: nextStatus, at: now }];
-      const statusUpdate: Partial<Commitment> & { updatedAt: number } = {
-        status: nextStatus,
-        updatedAt: now,
-        statusHistory,
-      };
-      if (nextStatus === 'completed' && !data.completedAt) {
-        statusUpdate.completedAt = now;
-      }
-      await setDoc(ref, statusUpdate, { merge: true });
+    const now = Date.now();
+    const statusUpdate: Partial<Commitment> & { updatedAt: number } = {
+      ...extraUpdates,
+      status: nextStatus,
+      updatedAt: now,
+    };
+    if (nextStatus !== prevStatus) {
+      statusUpdate.statusHistory = [...(data.statusHistory || []), { status: nextStatus, at: now }];
+    }
+    if (nextStatus === 'completed' && !data.completedAt) {
+      statusUpdate.completedAt = now;
+    }
+    await setDoc(ref, statusUpdate, { merge: true });
 
-      // Scoring: Calculate points based on whether this is the first completion of the week
-      if ((prevStatus !== 'completed' && nextStatus === 'completed') || (prevStatus === 'completed' && nextStatus !== 'completed')) {
-        // Query to check if user has ANY other completed commitments this week
-        // Note: This is a simplified check. In a production environment with high concurrency, 
-        // we might want to store 'commitmentsCompletedThisWeek' on the user object.
-        const commitmentsRef = collection(db, "commitments");
-        const q = query(
-          commitmentsRef,
-          where("memberId", "==", data.memberId),
-          where("weekId", "==", data.weekId),
-          where("status", "==", "completed")
-        );
-        const querySnapshot = await getDocs(q);
-        const completedCount = querySnapshot.size;
+    // Scoring: only when crossing the completed boundary in either direction.
+    if ((prevStatus !== 'completed' && nextStatus === 'completed') || (prevStatus === 'completed' && nextStatus !== 'completed')) {
+      // Query to check if user has ANY other completed commitments this week.
+      // Note: This is a simplified check. In a production environment with high
+      // concurrency, we might want to store 'commitmentsCompletedThisWeek' on the user object.
+      const commitmentsRef = collection(db, "commitments");
+      const q = query(
+        commitmentsRef,
+        where("memberId", "==", data.memberId),
+        where("weekId", "==", data.weekId),
+        where("status", "==", "completed")
+      );
+      const querySnapshot = await getDocs(q);
+      const completedCount = querySnapshot.size;
 
-        // If nextStatus is completed, and count is 1 (the one we just updated), then it's the first.
-        // If nextStatus is NOT completed, and count was 0 (before this update it was 1), then it WAS the first.
-        // Simplified Logic: 
-        // If we just completed it, did we have 0 before? (Now we have 1) -> First
-        // If we just un-completed it, do we now have 0? -> Was First (Reversal)
+      // The setDoc above already landed, so: just completed + count of 1 means
+      // it was the first of the week; just un-completed + count of 0 means it
+      // WAS the first (reversal).
+      const isFirst = (nextStatus === 'completed' && completedCount === 1) ||
+        (nextStatus !== 'completed' && completedCount === 0);
 
-        // However, since we already awaited the setDoc update above:
-        // If nextStatus === 'completed' and completedCount === 1, it is the first.
-        const isFirst = (nextStatus === 'completed' && completedCount === 1) ||
-          (nextStatus !== 'completed' && completedCount === 0);
-
-        const points = GamificationService.calculatePointsForAction(prevStatus, nextStatus, isFirst);
-        if (points !== 0) {
-          await StorageService.updateUserScore(data.memberId, points);
-        }
+      const points = GamificationService.calculatePointsForAction(prevStatus, nextStatus, isFirst);
+      if (points !== 0) {
+        await StorageService.updateUserScore(data.memberId, points);
       }
     }
   },
@@ -432,7 +445,8 @@ export const StorageService = {
       const snap = await getDoc(ref);
       if (snap.exists()) {
         const member = snap.data() as TeamMember;
-        const newScore = (member.score || 0) + points;
+        // Floor at zero — un-completing can't drive a score negative.
+        const newScore = Math.max(0, (member.score || 0) + points);
 
         // Check achievements
         const achievements = GamificationService.checkAchievements({ ...member, score: newScore });
@@ -652,7 +666,8 @@ export const StorageService = {
   getCategoryInsights: (): CategoryInsight[] => [],
   resolveChangeRequest: async (id: string, action: 'approve' | 'reject'): Promise<void> => { },
   getLeadMeasureLogs: (measureId: string): LeadMeasureLog[] => [],
-  getProxyUrl: (): string => 'https://whd-proxy-1014267640430.us-west1.run.app/?list=recent',
+  getProxyBaseUrl: (): string => 'https://whd-proxy-1014267640430.us-west1.run.app',
+  getProxyUrl: (): string => `${StorageService.getProxyBaseUrl()}/?list=recent`,
 
   /**
    * Checks if daily inspirations exist for today in Firestore.

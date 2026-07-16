@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppView, TeamMember, Commitment, LeadMeasure, Ticket, WIGConfig, CommitmentTemplate, BrandingConfig, DEFAULT_BRANDING, Achievement } from './types';
+import { AppView, TeamMember, Commitment, LeadMeasure, Ticket, WIGConfig, CommitmentTemplate, BrandingConfig, DEFAULT_BRANDING, Achievement, SurveyResult } from './types';
 import { StorageService } from './services/storage';
 import { WHDService } from './services/whd';
 import { AIService } from './services/ai';
@@ -72,6 +72,17 @@ const App: React.FC = () => {
       try {
         const email = firebaseUser.email?.toLowerCase();
         if (!email) throw new Error("SSO Identity missing email field.");
+
+        // Only college accounts may use the app. Firestore rules enforce this
+        // server-side; this check just gives a clear message and signs out.
+        const allowedDomain = (import.meta.env.VITE_ALLOWED_EMAIL_DOMAIN || 'bhasvic.ac.uk').toLowerCase();
+        if (!email.endsWith(`@${allowedDomain}`)) {
+          setAccessError(`Access Denied: only ${allowedDomain} accounts can use this system.`);
+          setIsAuthorized(false);
+          setAuthLoading(false);
+          await signOut(auth);
+          return;
+        }
 
         let sessionMember = await StorageService.getMemberById(firebaseUser.uid);
 
@@ -498,7 +509,7 @@ const App: React.FC = () => {
               templates={templates}
               wigConfig={wigConfig}
               members={members}
-              onAdd={(desc, leadMeasureId, leadMeasureName) => StorageService.addCommitment(currentUser.id, selectedWeekId, desc, leadMeasureId, leadMeasureName)}
+              onAdd={(desc, leadMeasureId, leadMeasureName, alignedByAI) => StorageService.addCommitment(currentUser.id, selectedWeekId, desc, leadMeasureId, leadMeasureName, alignedByAI)}
               onToggle={(id) => StorageService.cycleCommitmentStatus(id)}
               onUpdate={(id, up) => StorageService.updateCommitment(id, up)}
               onDelete={(id) => StorageService.deleteCommitment(id)}

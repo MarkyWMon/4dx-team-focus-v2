@@ -17,7 +17,7 @@ interface MyCommitmentsProps {
   templates?: CommitmentTemplate[];
   wigConfig?: WIGConfig | null; // For lead measures
   members?: TeamMember[]; // For auto-scoring updates
-  onAdd: (desc: string, leadMeasureId?: string, leadMeasureName?: string) => void;
+  onAdd: (desc: string, leadMeasureId?: string, leadMeasureName?: string, alignedByAI?: boolean) => void;
   onToggle: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Commitment>) => void;
   onDelete: (id: string) => void;
@@ -128,11 +128,13 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
         setValidationError('Unable to validate alignment right now. You can add this commitment without AI validation or select a Lead Measure manually.');
       }
 
-      // If aligned, auto-submit
+      // If aligned, auto-submit. Clear the check result too, so stale feedback
+      // (which references a suggested alternative) doesn't linger under the form.
       if (result?.isAligned && result.linkedLeadMeasureId) {
-        safeOnAdd(trimmed, result.linkedLeadMeasureId, result.linkedLeadMeasureName || undefined);
+        safeOnAdd(trimmed, result.linkedLeadMeasureId, result.linkedLeadMeasureName || undefined, true);
         setShowValidationModal(false);
         setPendingCommitment('');
+        setCheckResult(null);
       }
       // If not aligned, keep modal open for user to see feedback
     } catch (e) {
@@ -250,8 +252,10 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     return measure ? measure.currentCount >= measure.target : false;
   };
 
-  // Wrapper to enforce capacity before adding
-  const safeOnAdd = (desc: string, leadMeasureId?: string, leadMeasureName?: string): boolean => {
+  // Wrapper to enforce capacity before adding. alignedByAI is true ONLY when
+  // the AI itself validated/produced the measure link — manual and keyword
+  // assignments must pass false (the default).
+  const safeOnAdd = (desc: string, leadMeasureId?: string, leadMeasureName?: string, alignedByAI: boolean = false): boolean => {
     const measureKey = leadMeasureId || leadMeasureName;
     if (measureKey && isMeasureAtCapacity(measureKey)) {
       const measureName = measureCommitmentCounts.find(m => m.id === measureKey || m.name === measureKey)?.name || measureKey;
@@ -259,7 +263,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
         } commitments). Please choose a different Lead Measure.`);
       return false;
     }
-    onAdd(desc, leadMeasureId, leadMeasureName);
+    onAdd(desc, leadMeasureId, leadMeasureName, alignedByAI);
     return true;
   };
 
@@ -405,7 +409,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     setSuggestions(prev => prev.map(s => s.id === id ? { ...s, isExiting: true } : s));
     setTimeout(() => {
       // AI suggestions come with lead measure data - pass it through
-      safeOnAdd(item.commitment, item.leadMeasureId, item.leadMeasureName);
+      safeOnAdd(item.commitment, item.leadMeasureId, item.leadMeasureName, true);
       setSuggestions(prev => prev.filter(s => s.id !== id));
     }, 400);
   };
@@ -452,9 +456,10 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
     try {
       const previousStatus = commitment?.status;
 
-      // Update commitment with status, notes, photo, AND lead measure if newly selected
+      // Notes, photo, AND lead measure if newly selected. The status itself
+      // goes through applyCommitmentStatusChange so the audit trail and
+      // gamification points are applied — the same path as the checkbox.
       const updates: Partial<Commitment> = {
-        status: proofStatus,
         completionNote: proofNote,
         completionPhoto: proofPhoto || null as any
       };
@@ -466,7 +471,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
         updates.alignedByAI = false; // Manual assignment
       }
 
-      await onUpdate(proofModalId, updates);
+      await StorageService.applyCommitmentStatusChange(proofModalId, proofStatus, updates);
 
       // AUTO-SCORING: Update lead measure scorecard when status changes
       if (effectiveLeadMeasureId && proofStatus !== previousStatus) {
@@ -642,8 +647,8 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                     </div>
                   )}
 
-                  {/* Suggested Alternative */}
-                  {!checkResult.isAligned && checkResult.suggestedAlternative && (
+                  {/* Suggested Alternative (also shown when "aligned" but the AI named no measure, so the user isn't stuck) */}
+                  {checkResult.suggestedAlternative && (!checkResult.isAligned || !checkResult.linkedLeadMeasureId) && (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                       <p className="text-blue-700 text-[10px] uppercase font-bold tracking-widest mb-2">💡 Suggested Alternative</p>
                       <p className="text-blue-900 text-sm font-medium mb-3">{checkResult.suggestedAlternative}</p>
@@ -657,7 +662,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                               key={m.id}
                               disabled={isAtCapacity}
                               onClick={() => {
-                                safeOnAdd(checkResult.suggestedAlternative!, m.id, m.name);
+                                safeOnAdd(checkResult.suggestedAlternative!, m.id, m.name, m.id === checkResult.linkedLeadMeasureId);
                                 setShowValidationModal(false);
                                 setPendingCommitment('');
                                 setCheckResult(null);
@@ -675,8 +680,8 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                     </div>
                   )}
 
-                  {/* Manual Lead Measure Selection (if not aligned) */}
-                  {!checkResult.isAligned && leadMeasures.length > 0 && (
+                  {/* Manual Lead Measure Selection (whenever no measure got linked) */}
+                  {(!checkResult.isAligned || !checkResult.linkedLeadMeasureId) && leadMeasures.length > 0 && (
                     <div className="border-t border-slate-100 pt-4">
                       <p className="text-slate-600 text-xs font-semibold mb-3">Or select a Lead Measure manually:</p>
                       <div className="flex flex-wrap gap-2">
@@ -1069,6 +1074,22 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                     <div className="flex-grow">
                       <h4 className={`text-sm font-bold uppercase tracking-wider font-display ${checkResult.isEffective ? 'text-green-800' : 'text-amber-800'}`}>Coach Feedback</h4>
                       <p className="text-sm text-gray-700 leading-relaxed mt-2">{checkResult.feedback}</p>
+                      {checkResult.suggestedAlternative && (
+                        <div className="mt-3 p-3 bg-white/70 border border-blue-200 rounded-xl">
+                          <p className="text-blue-700 text-[10px] uppercase font-bold tracking-widest mb-1">💡 Suggested Alternative</p>
+                          <p className="text-sm text-blue-900 font-medium">{checkResult.suggestedAlternative}</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewCommitment(checkResult.suggestedAlternative!);
+                              setCheckResult(null);
+                            }}
+                            className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+                          >
+                            Use this wording
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

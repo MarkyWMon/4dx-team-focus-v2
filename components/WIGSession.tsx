@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TeamMember, WIGSession, WIGSessionStep, Commitment } from '../types';
 import { StorageService } from '../services/storage';
-import { getPreviousWeekId } from '../utils';
+import { getPreviousWeekId, WIN_THRESHOLD } from '../utils';
 
 interface WIGSessionProps {
     currentUser: TeamMember;
@@ -222,7 +222,18 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-end mb-4">
                                         <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest">Commitment Audit (Last Week)</h4>
-                                        <div className="text-[10px] font-bold text-brand-red uppercase bg-red-50 px-2 py-1 rounded">Target: 80% Success Rate</div>
+                                        {(() => {
+                                            const total = prevCommitments.length;
+                                            const done = prevCommitments.filter(c => c.status === 'completed').length;
+                                            const winning = total > 0 && done / total >= WIN_THRESHOLD;
+                                            return (
+                                                <div className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${winning ? 'text-brand-green bg-green-50' : 'text-brand-red bg-red-50'}`}>
+                                                    {total === 0
+                                                        ? 'No commitments to audit'
+                                                        : `Team ${Math.round((done / total) * 100)}% · Target ${WIN_THRESHOLD * 100}%`}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="grid grid-cols-1 gap-4">
                                         {members.map(m => {
@@ -235,6 +246,16 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                                                             <span className="font-black text-slate-900 uppercase text-xs tracking-tight">{m.name}</span>
                                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{memberCommits.length} Commitments Made</p>
                                                         </div>
+                                                        {memberCommits.length > 0 && (() => {
+                                                            const done = memberCommits.filter(c => c.status === 'completed').length;
+                                                            const rate = done / memberCommits.length;
+                                                            const won = rate >= WIN_THRESHOLD;
+                                                            return (
+                                                                <div className={`ml-auto text-[10px] font-black uppercase px-2 py-1 rounded ${won ? 'bg-brand-green/10 text-brand-green' : 'bg-red-50 text-brand-red'}`}>
+                                                                    {done}/{memberCommits.length} · {Math.round(rate * 100)}%
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </div>
 
                                                     <div className="space-y-2">

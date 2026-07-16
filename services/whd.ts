@@ -2,6 +2,7 @@
 import { Ticket } from '../types';
 import { getWeekId, parseDate } from '../utils';
 import { StorageService } from './storage';
+import { auth } from './firebase';
 
 /**
  * SolarWinds WHD API Integration Service
@@ -68,14 +69,21 @@ export const WHDService = {
       }
     }
 
+    // The proxy requires a Firebase ID token — CORS alone doesn't stop scripts.
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("You must be signed in to sync helpdesk tickets.");
+    }
+    const idToken = await user.getIdToken();
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); 
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     try {
       const response = await fetch(endpoint, {
         method: 'GET',
         mode: fetchMode,
-        headers: { 'Accept': 'application/json' },
+        headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${idToken}` },
         signal: controller.signal
       });
 

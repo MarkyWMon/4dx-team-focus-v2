@@ -4,7 +4,7 @@ import { TeamMember, AppView, WIGConfig, WIG_SETTINGS, Commitment, SurveyResult,
 import { WHDService } from '../services/whd';
 import { AIService } from '../services/ai';
 import { GamificationService } from '../services/gamification';
-import { getPreviousWeekId, getWeekId } from '../utils';
+import { getPreviousWeekId, getWeekId, WIN_THRESHOLD } from '../utils';
 import UserStats from './UserStats';
 import CorrelationChart from './CorrelationChart';
 
@@ -256,23 +256,17 @@ const Dashboard: React.FC<DashboardProps> = ({
         {leadMeasures.map((measure, measureIndex) => {
           const teamTarget = numActive * measure.target; // TEAM TARGET = Members × Individual Target
 
-          // CALCULATE ACTUAL: 
-          // Match by ID OR by name (some commitments incorrectly store name in leadMeasureId)
-          const byLeadMeasure = currentWeekCommitments.filter(c =>
+          // CALCULATE ACTUAL:
+          // Match by ID OR by name (some commitments incorrectly store name in leadMeasureId).
+          // Only commitments actually tagged to this measure count — no fallback
+          // that dumps untagged completions into the first card.
+          const actual = currentWeekCommitments.filter(c =>
             c.status === 'completed' && (
               c.leadMeasureId === measure.id ||
               c.leadMeasureId === measure.name ||
               c.leadMeasureName === measure.name
             )
           ).length;
-
-          const totalCompleted = currentWeekCommitments.filter(c => c.status === 'completed').length;
-          const hasAnyWithLeadMeasure = currentWeekCommitments.some(c => c.leadMeasureId || c.leadMeasureName);
-
-          // If commitments have leadMeasureId, use that count; otherwise distribute total evenly
-          const actual = hasAnyWithLeadMeasure
-            ? byLeadMeasure
-            : (measureIndex === 0 ? totalCompleted : 0);
 
           const percent = Math.min(100, (actual / (teamTarget || 1)) * 100);
           const isWinning = actual >= teamTarget;
@@ -282,10 +276,6 @@ const Dashboard: React.FC<DashboardProps> = ({
               <div className="mb-4">
                 <div className="flex justify-between items-start mb-1">
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{measure.name}</h3>
-                  <div className="trend-pill trend-up">
-                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 15l7-7 7 7" /></svg>
-                    2.4%
-                  </div>
                 </div>
 
                 <div className="flex items-baseline gap-2 mb-4">
@@ -364,8 +354,8 @@ const Dashboard: React.FC<DashboardProps> = ({
               } else if (isCurrent) {
                 state = 'live';
               } else {
-                // A past week is a "win" if at least half the commitments were completed.
-                state = completed >= Math.ceil(total / 2) ? 'win' : 'miss';
+                // The shared definition of winning: ≥80% of commitments completed.
+                state = completed / total >= WIN_THRESHOLD ? 'win' : 'miss';
               }
               weeks.push({ weekId, completed, total, state });
               weekId = getPreviousWeekId(weekId);
@@ -502,27 +492,17 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <td className="px-6 py-4">
                     <span className="font-bold text-slate-600">{(member.score || 0).toLocaleString()}</span>
                   </td>
-                  {leadMeasures.map((measure, measureIndex) => {
-                    // Count this member's completed commitments
-                    // Match by ID OR by name (some commitments store name in leadMeasureId)
-                    const byLeadMeasure = currentWeekCommitments.filter(c =>
+                  {leadMeasures.map(measure => {
+                    // Count this member's completed commitments tagged to this
+                    // measure. Match by ID OR by name (some commitments store
+                    // name in leadMeasureId). No first-column fallback.
+                    const currentCount = currentWeekCommitments.filter(c =>
                       c.memberId === member.id &&
                       c.status === 'completed' &&
                       (c.leadMeasureId === measure.id ||
                         c.leadMeasureId === measure.name ||
                         c.leadMeasureName === measure.name)
                     ).length;
-
-                    const memberTotalCompleted = currentWeekCommitments.filter(c =>
-                      c.memberId === member.id && c.status === 'completed'
-                    ).length;
-
-                    const hasAnyWithLeadMeasure = currentWeekCommitments.some(c => c.leadMeasureId || c.leadMeasureName);
-
-                    // Fall back to total if no leadMeasureId assigned
-                    const currentCount = hasAnyWithLeadMeasure
-                      ? byLeadMeasure
-                      : (measureIndex === 0 ? memberTotalCompleted : 0);
 
                     const target = measure.target || 1;
                     const isOnTrack = currentCount >= target;

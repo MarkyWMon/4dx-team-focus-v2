@@ -1,3 +1,7 @@
+// The single definition of a "won" week across the app (momentum strip,
+// streaks, WIG session audit): at least 80% of commitments completed.
+export const WIN_THRESHOLD = 0.8;
+
 // Day of week the WIG cycle starts on (0=Sun..6=Sat). 1=Monday matches ISO weeks.
 let WIG_DAY_OF_WEEK = 1;
 

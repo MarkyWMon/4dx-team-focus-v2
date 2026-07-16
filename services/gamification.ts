@@ -1,4 +1,5 @@
 import { TeamMember, Commitment, Achievement } from '../types';
+import { WIN_THRESHOLD } from '../utils';
 
 export const SCORING = {
     COMMITMENT_COMPLETE: 50,
@@ -79,18 +80,22 @@ export const GamificationService = {
         const lastWeekCommitments = commitments.filter(c => c.memberId === user.id && c.weekId === lastWeekId);
 
         if (lastWeekCommitments.length === 0) {
-            // Optional: Decide if no commitments for a week breaks a streak
-            return { lastActiveWeekId: lastWeekId };
+            // Committing to nothing is not a win — an empty week breaks the streak.
+            return { streak: 0, lastActiveWeekId: lastWeekId };
         }
 
-        const allCompleted = lastWeekCommitments.every(c => c.status === 'completed');
+        const completedCount = lastWeekCommitments.filter(c => c.status === 'completed').length;
+        // A week is "won" at the shared 80% threshold; perfection (100%) still
+        // earns the bonus on top.
+        const wonWeek = completedCount / lastWeekCommitments.length >= WIN_THRESHOLD;
+        const allCompleted = completedCount === lastWeekCommitments.length;
 
         let newStreak = user.streak;
         let newScore = user.score;
 
-        if (allCompleted) {
+        if (wonWeek) {
             newStreak += 1;
-            newScore += SCORING.WEEKLY_PERFECTION;
+            if (allCompleted) newScore += SCORING.WEEKLY_PERFECTION;
             if (newStreak % 5 === 0) newScore += SCORING.STREAK_MILESTONE;
         } else {
             newStreak = 0; // Streak broken
