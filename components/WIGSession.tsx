@@ -204,48 +204,45 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
 
     const currentAgendaItem = session ? AGENDA_STEPS.find(s => s.id === currentStepId) : null;
 
-    if (loading) return <div className="p-12 text-center text-slate-400">Loading WIG Session...</div>;
+    if (loading) return <div className="py-10 text-center text-sm text-slate-400">Loading WIG session…</div>;
 
     // -- PRE-SESSION VIEW --
     if (!session || (session.status === 'scheduled' && !isReviewing)) {
         return (
-            <div className="max-w-4xl mx-auto p-6 animate-fade-in">
-                <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-slate-100 relative">
-                    <div className="bg-brand-navy p-12 text-center relative overflow-hidden">
-                        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                        <h1 className="text-4xl font-black text-white font-display uppercase tracking-tight mb-4 relative z-10">Weekly WIG Session</h1>
-                        <p className="text-blue-200 font-medium text-lg max-w-xl mx-auto relative z-10">
-                            It's time to recalibrate. 20 minutes to focus on the one thing that matters most.
-                        </p>
+            <div className="max-w-3xl mx-auto animate-fade-in space-y-3">
+                <div className="ui-card">
+                    <h1 className="text-base font-semibold text-slate-900">Weekly WIG session</h1>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                        It's time to recalibrate. 20 minutes to focus on the one thing that matters most.
+                    </p>
+                </div>
+
+                <div className="ui-card">
+                    <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Run of show</h3>
+                    <div className="divide-y divide-slate-100">
+                        {AGENDA_STEPS.map((step, idx) => (
+                            <div key={step.id} className="flex items-center gap-3 py-2.5">
+                                <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center font-semibold text-slate-500 text-xs ui-metric shrink-0">
+                                    {step.id}
+                                </div>
+                                <div className="flex-grow">
+                                    <h4 className="text-sm font-semibold text-slate-900">{step.title}</h4>
+                                    <p className="text-xs text-slate-500 mt-0.5">{step.prompt}</p>
+                                </div>
+                                <span className="ui-chip bg-slate-100 text-slate-600 ui-metric shrink-0">
+                                    {step.durationMinutes}m
+                                </span>
+                            </div>
+                        ))}
                     </div>
 
-                    <div className="p-12">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-8 text-center">Run of Show</h3>
-                        <div className="space-y-6 max-w-2xl mx-auto">
-                            {AGENDA_STEPS.map((step, idx) => (
-                                <div key={step.id} className="flex items-center gap-6 p-4 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
-                                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-400 text-sm">
-                                        {step.id}
-                                    </div>
-                                    <div className="flex-grow">
-                                        <h4 className="font-bold text-slate-900 uppercase tracking-tight">{step.title}</h4>
-                                        <p className="text-xs text-slate-500 mt-1">{step.prompt}</p>
-                                    </div>
-                                    <div className="text-xs font-black text-brand-red bg-red-50 px-3 py-1 rounded-full">
-                                        {step.durationMinutes}m
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-12 text-center">
-                            <button
-                                onClick={handleStartSession}
-                                className="bg-brand-red text-white font-black text-lg px-12 py-5 rounded-2xl shadow-xl hover:bg-brand-darkRed hover:scale-105 transition-all active:scale-95 uppercase tracking-widest"
-                            >
-                                Start Session
-                            </button>
-                        </div>
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                        <button
+                            onClick={handleStartSession}
+                            className="bg-brand-navy text-white text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-all"
+                        >
+                            Start session
+                        </button>
                     </div>
                 </div>
             </div>
@@ -255,60 +252,59 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
     // -- IN PROGRESS OR REVIEW VIEW --
     if ((session.status === 'in_progress' || isReviewing) && currentAgendaItem) {
         return (
-            <div className="max-w-6xl mx-auto p-4 h-[calc(100vh-100px)] flex flex-col">
+            <div className="max-w-6xl mx-auto h-[calc(100vh-100px)] flex flex-col">
                 {/* Header / Timer */}
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex justify-between items-center mb-6">
+                <div className="ui-card !py-3 flex justify-between items-center mb-3">
                     <div>
-                        {isReviewing && <span className="inline-block bg-yellow-100 text-yellow-800 text-[10px] font-black px-2 py-1 rounded mb-1 uppercase tracking-widest">👀 Review Mode (Read Only)</span>}
-                        <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Focus</span>
-                        <h2 className="text-2xl font-black text-brand-navy font-display uppercase tracking-tight">{currentAgendaItem.title}</h2>
+                        {isReviewing && <span className="ui-chip bg-yellow-50 border border-yellow-200 text-yellow-800 mb-1">Review mode (read only)</span>}
+                        <span className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Current focus</span>
+                        <h2 className="text-base font-semibold text-slate-900">{currentAgendaItem.title}</h2>
                     </div>
 
-                    <div className={`font-mono text-4xl font-black tabular-nums tracking-tighter ${timeLeft < 60 ? 'text-brand-red animate-pulse' : 'text-slate-900'}`}>
+                    <div className={`font-mono text-2xl font-semibold ui-metric ${timeLeft < 60 ? 'text-brand-red animate-pulse' : 'text-slate-900'}`}>
                         {formatTime(timeLeft)}
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 flex-grow overflow-hidden">
                     {/* Guidelines */}
-                    <div className="lg:col-span-1 bg-brand-navy rounded-3xl p-8 text-white flex flex-col justify-between">
+                    <div className="lg:col-span-1 ui-card flex flex-col justify-between">
                         <div>
-                            <div className="h-12 w-12 bg-white/10 rounded-2xl flex items-center justify-center mb-6 text-2xl">💡</div>
-                            <h3 className="text-xl font-bold mb-4 font-display">Coach's Prompt</h3>
-                            <p className="text-blue-100 text-lg leading-relaxed font-light opacity-90">
+                            <h3 className="text-sm font-semibold text-slate-900 mb-2">💡 Coach's prompt</h3>
+                            <p className="text-sm text-slate-600 leading-relaxed">
                                 {currentAgendaItem.prompt}
                             </p>
                         </div>
 
-                        <div className="mt-8 space-y-4">
-                            <div className="text-[10px] font-black uppercase tracking-widest opacity-50">Up Next</div>
+                        <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
+                            <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Up next</div>
                             {AGENDA_STEPS.filter(s => s.id > currentStepId).slice(0, 2).map(s => (
-                                <div key={s.id} className="opacity-50 text-sm font-bold">{s.id}. {s.title}</div>
+                                <div key={s.id} className="text-xs text-slate-400 font-medium">{s.id}. {s.title}</div>
                             ))}
                         </div>
                     </div>
 
                     {/* Interactive Area */}
-                    <div className="lg:col-span-2 bg-white rounded-3xl p-8 border border-slate-100 shadow-sm flex flex-col">
+                    <div className="lg:col-span-2 ui-card flex flex-col">
                         <div className="flex-grow overflow-y-auto pr-2">
                             {currentStepId === 1 && (
-                                <div className="text-center py-12">
-                                    <div className="text-6xl mb-4">📊</div>
-                                    <p className="text-slate-500 font-bold">Project the Scoreboard on the main screen now.</p>
-                                    <p className="text-sm text-slate-400 mt-2">Does everyone know the score?</p>
+                                <div className="text-center py-10">
+                                    <div className="text-4xl mb-3">📊</div>
+                                    <p className="text-sm text-slate-600 font-semibold">Project the scoreboard on the main screen now.</p>
+                                    <p className="text-xs text-slate-400 mt-1">Does everyone know the score?</p>
                                 </div>
                             )}
 
                             {currentStepId === 2 && (
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-end mb-4">
-                                        <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest">Commitment Audit (Last Week)</h4>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-end mb-2">
+                                        <h4 className="text-sm font-semibold text-slate-900">Commitment audit (last week)</h4>
                                         {(() => {
                                             const total = prevCommitments.length;
                                             const done = prevCommitments.filter(c => c.status === 'completed').length;
                                             const winning = total > 0 && done / total >= WIN_THRESHOLD;
                                             return (
-                                                <div className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${winning ? 'text-brand-green bg-green-50' : 'text-brand-red bg-red-50'}`}>
+                                                <div className={`ui-chip ui-metric ${winning ? 'text-brand-green bg-green-50' : 'text-brand-red bg-red-50'}`}>
                                                     {total === 0
                                                         ? 'No commitments to audit'
                                                         : `Team ${Math.round((done / total) * 100)}% · Target ${WIN_THRESHOLD * 100}%`}
@@ -316,23 +312,23 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                                             );
                                         })()}
                                     </div>
-                                    <div className="grid grid-cols-1 gap-4">
+                                    <div className="grid grid-cols-1 gap-3">
                                         {members.map(m => {
                                             const memberCommits = prevCommitments.filter(c => c.memberId === m.id);
                                             return (
-                                                <div key={m.id} className="bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col gap-4">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="h-10 w-10 bg-slate-900 text-white rounded-xl flex items-center justify-center text-xs font-black shadow-sm">{m.avatar}</div>
+                                                <div key={m.id} className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col gap-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-8 w-8 bg-slate-200 text-slate-600 rounded-full flex items-center justify-center text-[10px] font-bold uppercase">{m.avatar}</div>
                                                         <div>
-                                                            <span className="font-black text-slate-900 uppercase text-xs tracking-tight">{m.name}</span>
-                                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{memberCommits.length} Commitments Made</p>
+                                                            <span className="text-sm font-semibold text-slate-900">{m.name}</span>
+                                                            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide ui-metric">{memberCommits.length} commitments made</p>
                                                         </div>
                                                         {memberCommits.length > 0 && (() => {
                                                             const done = memberCommits.filter(c => c.status === 'completed').length;
                                                             const rate = done / memberCommits.length;
                                                             const won = rate >= WIN_THRESHOLD;
                                                             return (
-                                                                <div className={`ml-auto text-[10px] font-black uppercase px-2 py-1 rounded ${won ? 'bg-brand-green/10 text-brand-green' : 'bg-red-50 text-brand-red'}`}>
+                                                                <div className={`ml-auto ui-chip ui-metric ${won ? 'bg-brand-green/10 text-brand-green' : 'bg-red-50 text-brand-red'}`}>
                                                                     {done}/{memberCommits.length} · {Math.round(rate * 100)}%
                                                                 </div>
                                                             );
@@ -344,12 +340,12 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                                                             <p className="text-[10px] text-slate-400 italic font-medium">No commitments found for last week.</p>
                                                         ) : (
                                                             memberCommits.map(c => (
-                                                                <div key={c.id} className="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-100 shadow-sm transition-all hover:border-brand-navy">
-                                                                    <div className={`mt-0.5 h-4 w-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${c.status === 'completed' ? 'bg-brand-green border-brand-green text-white' : c.status === 'partial' ? 'bg-brand-orange border-brand-orange text-white' : 'border-slate-200 text-slate-200'}`}>
+                                                                <div key={c.id} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-slate-100 transition-all hover:border-brand-navy">
+                                                                    <div className={`mt-0.5 h-4 w-4 rounded-full border flex-shrink-0 flex items-center justify-center ${c.status === 'completed' ? 'bg-brand-green border-brand-green text-white' : c.status === 'partial' ? 'bg-brand-orange border-brand-orange text-white' : 'border-slate-200 text-slate-200'}`}>
                                                                         {c.status === 'completed' && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
                                                                     </div>
                                                                     <div className="flex-grow">
-                                                                        <p className="text-xs font-bold text-slate-800 leading-tight">{c.description}</p>
+                                                                        <p className="text-xs font-semibold text-slate-800 leading-tight">{c.description}</p>
                                                                         {(c.completionNote || c.completionPhoto) && (
                                                                             <div className="mt-2 flex gap-3 items-center">
                                                                                 {c.completionPhoto && (
@@ -421,7 +417,7 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                             {(currentStepId === 3 || currentStepId === 5) && (
                                 <div>
                                     <textarea
-                                        className="w-full h-64 p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 focus:ring-4 focus:ring-brand-navy/10 outline-none text-lg resize-none"
+                                        className="w-full h-64 p-3 bg-slate-50 rounded-lg border border-slate-200 focus:bg-white focus:border-brand-navy outline-none text-sm resize-none transition-colors"
                                         placeholder={currentStepId === 3 ? "Record key wins or learnings here..." : "List any obstacles preventing execution..."}
                                         value={currentStepId === 3 ? session.notes : session.obstacles}
                                         disabled={isReviewing}
@@ -431,18 +427,18 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                             )}
 
                             {currentStepId === 4 && (
-                                <div className="text-center py-12">
-                                    <div className="text-6xl mb-4">⚡</div>
-                                    <p className="text-slate-500 font-bold">Everyone open "My Commitments" and log next week's plan.</p>
-                                    <p className="text-sm text-slate-400 mt-2">Ensure high leverage & specificity.</p>
+                                <div className="text-center py-10">
+                                    <div className="text-4xl mb-3">⚡</div>
+                                    <p className="text-sm text-slate-600 font-semibold">Everyone open "My Commitments" and log next week's plan.</p>
+                                    <p className="text-xs text-slate-400 mt-1">Ensure high leverage & specificity.</p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="mt-6 pt-6 border-t border-slate-100 flex justify-between items-center">
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
                             <button
                                 onClick={onClose}
-                                className="px-6 py-3 text-slate-400 font-bold hover:text-slate-600 uppercase tracking-widest text-xs"
+                                className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                             >
                                 Exit
                             </button>
@@ -456,16 +452,16 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                                             setIsReviewing(false);
                                         }
                                     }}
-                                    className="px-8 py-4 bg-yellow-100 text-yellow-900 font-black rounded-xl hover:bg-yellow-200 transition-all shadow-lg uppercase tracking-widest text-xs flex items-center gap-2"
+                                    className="px-4 py-2 bg-yellow-100 text-yellow-900 text-sm font-semibold rounded-lg hover:bg-yellow-200 transition-all flex items-center gap-2"
                                 >
-                                    {reviewStep === 5 ? 'Finish Review' : 'Next Step'} <span className="text-yellow-700">→</span>
+                                    {reviewStep === 5 ? 'Finish review' : 'Next step'} <span aria-hidden>→</span>
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleNextStep}
-                                    className="px-8 py-4 bg-brand-navy text-white font-black rounded-xl hover:bg-black transition-all shadow-lg uppercase tracking-widest text-xs flex items-center gap-2"
+                                    className="px-4 py-2 bg-brand-navy text-white text-sm font-semibold rounded-lg hover:opacity-90 transition-all flex items-center gap-2"
                                 >
-                                    {session.currentStep === 5 ? 'Finish Session' : 'Next Step'} <span className="text-brand-red">→</span>
+                                    {session.currentStep === 5 ? 'Finish session' : 'Next step'} <span aria-hidden>→</span>
                                 </button>
                             )}
                         </div>
@@ -477,24 +473,24 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
 
     // -- COMPLETED VIEW --
     return (
-        <div className="max-w-2xl mx-auto p-12 text-center animate-fade-in">
-            <div className="bg-white rounded-[3rem] p-12 shadow-2xl border-4 border-slate-50">
-                <div className="h-24 w-24 bg-green-100 text-brand-green rounded-full flex items-center justify-center text-5xl mb-8 mx-auto shadow-inner">
+        <div className="max-w-md mx-auto text-center animate-fade-in">
+            <div className="ui-card">
+                <div className="h-12 w-12 bg-green-100 text-brand-green rounded-full flex items-center justify-center text-2xl mb-3 mx-auto">
                     🎉
                 </div>
-                <h2 className="text-3xl font-black text-brand-navy font-display uppercase tracking-tight mb-4">Session Complete!</h2>
-                <p className="text-slate-500 font-medium mb-12">Great accountability today. Let's execute on those commitments.</p>
+                <h2 className="text-base font-semibold text-slate-900 mb-1">Session complete</h2>
+                <p className="text-xs text-slate-500 mb-4">Great accountability today. Let's execute on those commitments.</p>
 
-                <div className="flex flex-col gap-4">
-                    <button onClick={onClose} className="bg-slate-900 text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest hover:scale-105 transition-transform w-full">
-                        Return to Dashboard
+                <div className="flex flex-col gap-2">
+                    <button onClick={onClose} className="bg-brand-navy text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-all w-full">
+                        Return to dashboard
                     </button>
 
                     <button
                         onClick={() => { setIsReviewing(true); setReviewStep(1); }}
-                        className="bg-white border-2 border-slate-100 text-slate-600 px-10 py-3 rounded-xl font-bold uppercase tracking-widest hover:bg-slate-50 transition-colors w-full flex items-center justify-center gap-2"
+                        className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-50 transition-colors w-full"
                     >
-                        <span>👀</span> Review Session (Read Only)
+                        Review session (read only)
                     </button>
 
 
@@ -502,9 +498,9 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                         <button
                             onClick={handleResetSession}
                             disabled={isResetting}
-                            className="bg-transparent text-slate-400 px-10 py-2 rounded-xl font-bold uppercase tracking-widest text-xs hover:text-red-500 transition-colors"
+                            className="text-slate-400 px-4 py-2 rounded-lg text-xs font-semibold hover:text-brand-red transition-colors"
                         >
-                            {isResetting ? 'Resetting...' : 'Reset Session (Manager Only)'}
+                            {isResetting ? 'Resetting…' : 'Reset session (manager only)'}
                         </button>
                     )}
                 </div>

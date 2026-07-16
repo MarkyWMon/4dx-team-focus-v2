@@ -56,7 +56,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess, accessError }) => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 relative overflow-hidden">
       <div className="absolute top-0 inset-x-0 h-1.5 bg-brand-red"></div>
       <div className="w-full max-w-md animate-fade-in">
-        <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-100 flex flex-col items-center">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center">
           <div className="mb-12 p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
             <Logo className="h-16 w-16" />
           </div>

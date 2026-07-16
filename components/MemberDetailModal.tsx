@@ -68,11 +68,11 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ member, commitmen
   const statusBadge = (status: string) => {
     switch (status) {
       case 'completed':
-        return <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-emerald-100 text-emerald-700">Completed</span>;
+        return <span className="ui-chip bg-emerald-100 text-emerald-700">Completed</span>;
       case 'partial':
-        return <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700">Partial</span>;
+        return <span className="ui-chip bg-amber-100 text-amber-700">Partial</span>;
       default:
-        return <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-slate-100 text-slate-500">Incomplete</span>;
+        return <span className="ui-chip bg-slate-100 text-slate-500">Incomplete</span>;
     }
   };
 
@@ -126,22 +126,22 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ member, commitmen
     new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-navy/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div className="bg-white rounded-xl border border-slate-200 w-full max-w-2xl shadow-xl max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 bg-slate-50">
+        <div className="p-4 border-b border-slate-100">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 bg-brand-navy text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 bg-brand-navy text-white rounded-lg flex items-center justify-center font-semibold text-xs">
                 {member.avatar}
               </div>
               <div>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">{member.name}</h3>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[10px] font-bold text-brand-red uppercase tracking-wide">{member.role}</span>
+                <h3 className="text-base font-semibold text-slate-900">{member.name}</h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{member.role}</span>
                   <span className="text-slate-200">|</span>
-                  <span className="text-[10px] text-slate-500 font-medium">{member.email}</span>
+                  <span className="text-[10px] text-slate-500">{member.email}</span>
                 </div>
               </div>
             </div>
@@ -151,16 +151,16 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ member, commitmen
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-4">
+          <div className="flex gap-1 mt-3">
             <button
               onClick={() => setActiveTab('overview')}
-              className={`px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${activeTab === 'overview' ? 'bg-brand-navy text-white' : 'text-slate-500 hover:bg-slate-200'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activeTab === 'overview' ? 'bg-brand-navy text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               Overview
             </button>
             <button
               onClick={() => setActiveTab('activity')}
-              className={`px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors ${activeTab === 'activity' ? 'bg-brand-navy text-white' : 'text-slate-500 hover:bg-slate-200'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${activeTab === 'activity' ? 'bg-brand-navy text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               Activity
             </button>
@@ -168,54 +168,54 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ member, commitmen
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4">
 
           {activeTab === 'overview' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Quick Stats Row */}
               <div className="grid grid-cols-4 gap-3">
                 <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                  <div className="text-2xl font-black text-slate-900">{member.score || 0}</div>
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Score</div>
+                  <div className="ui-metric text-xl font-bold text-slate-900">{member.score || 0}</div>
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mt-1">Score</div>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                  <div className="text-2xl font-black text-slate-900">{member.streak || 0}</div>
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Streak</div>
+                  <div className="ui-metric text-xl font-bold text-slate-900">{member.streak || 0}</div>
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mt-1">Streak</div>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                  <div className="text-2xl font-black text-slate-900">{stats.completionRate}%</div>
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Completion</div>
+                  <div className="ui-metric text-xl font-bold text-slate-900">{stats.completionRate}%</div>
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mt-1">Completion</div>
                 </div>
                 <div className="bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
-                  <div className="text-2xl font-black text-slate-900">{stats.total}</div>
-                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">All Time</div>
+                  <div className="ui-metric text-xl font-bold text-slate-900">{stats.total}</div>
+                  <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mt-1">All time</div>
                 </div>
               </div>
 
               {/* Last Login */}
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <span className="font-medium">Last login:</span>
-                <span className="font-bold text-slate-700">
+                <span>Last login:</span>
+                <span className="font-semibold text-slate-700 ui-metric">
                   {member.lastLogin ? new Date(member.lastLogin).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never'}
                 </span>
               </div>
 
               {/* Current Week Commitments */}
               <div>
-                <h4 className="text-xs font-black text-brand-navy uppercase tracking-widest mb-3">
-                  This Week ({currentWeekId}) — {stats.currentCompleted}/{stats.currentTotal} completed
+                <h4 className="text-sm font-semibold text-slate-900 mb-2">
+                  This week (<span className="ui-metric">{currentWeekId}</span>) — <span className="ui-metric">{stats.currentCompleted}/{stats.currentTotal}</span> completed
                 </h4>
                 {currentWeekCommitments.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No commitments set this week.</p>
+                  <p className="text-xs text-slate-400">No commitments set this week.</p>
                 ) : (
                   <div className="space-y-2">
                     {currentWeekCommitments.map(c => (
-                      <div key={c.id} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
+                      <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                         <div className="flex-1 mr-3">
-                          <p className="text-sm text-slate-700 font-medium leading-snug">{c.description}</p>
+                          <p className="text-sm text-slate-700 leading-snug">{c.description}</p>
                           {c.leadMeasureName && (
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide mt-1 inline-block">{c.leadMeasureName}</span>
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mt-1 inline-block">{c.leadMeasureName}</span>
                           )}
                         </div>
                         {statusBadge(c.status)}
@@ -228,15 +228,15 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ member, commitmen
               {/* Historical Commitments */}
               {historicalByWeek.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Previous Weeks</h4>
-                  <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-2">Previous weeks</h4>
+                  <div className="space-y-2">
                     {historicalByWeek.map(([weekId, weekCommitments]) => {
                       const weekCompleted = weekCommitments.filter(c => c.status === 'completed').length;
                       return (
-                        <div key={weekId} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                        <div key={weekId} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{weekId}</span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide ui-metric">{weekId}</span>
+                            <span className={`ui-chip ui-metric ${
                               weekCompleted === weekCommitments.length ? 'bg-emerald-100 text-emerald-700' :
                               weekCompleted > 0 ? 'bg-amber-100 text-amber-700' :
                               'bg-slate-100 text-slate-500'
@@ -247,7 +247,7 @@ const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ member, commitmen
                           <div className="space-y-1">
                             {weekCommitments.map(c => (
                               <div key={c.id} className="flex items-center justify-between py-1">
-                                <span className="text-xs text-slate-600 font-medium truncate mr-2">{c.description}</span>
+                                <span className="text-xs text-slate-600 truncate mr-2">{c.description}</span>
                                 {statusBadge(c.status)}
                               </div>
                             ))}

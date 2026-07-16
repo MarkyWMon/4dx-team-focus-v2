@@ -12,57 +12,57 @@ const UserStats: React.FC<UserStatsProps> = ({ member }) => {
     const achievements = member.achievements || [];
 
     return (
-        <div className="bg-white rounded-2xl p-6 shadow-soft border border-slate-100/60 animate-fade-in group">
-            <div className="flex items-center justify-between mb-6">
+        <div className="ui-card animate-fade-in">
+            <div className="flex items-center justify-between mb-3">
                 <div>
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Focus Profile</h3>
-                    <p className="text-lg font-bold text-slate-900 leading-none">{member.name}</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Focus profile</p>
+                    <h3 className="text-sm font-semibold text-slate-900 mt-0.5">{member.name}</h3>
                 </div>
-                <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 group-hover:border-brand-navy/20 transition-colors">
-                    <Trophy className="h-5 w-5 text-brand-orange" />
+                <div className="h-8 w-8 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100">
+                    <Trophy className="h-4 w-4 text-brand-orange" />
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100/60 hover:bg-white hover:shadow-sm transition-all group/stat">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Flame className={`h-4 w-4 ${currentStreak > 0 ? 'text-orange-500 fill-orange-500' : 'text-slate-300'} transition-transform group-hover/stat:scale-110`} />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Streak</span>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <Flame className={`h-3.5 w-3.5 ${currentStreak > 0 ? 'text-orange-500 fill-orange-500' : 'text-slate-300'}`} />
+                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Streak</span>
                     </div>
-                    <p className="text-xl font-bold text-slate-900 font-display">{currentStreak} <span className="text-[10px] text-slate-400 uppercase font-medium">Weeks</span></p>
+                    <p className="ui-metric text-lg font-semibold text-slate-900">{currentStreak} <span className="text-[10px] text-slate-400 font-medium">weeks</span></p>
                 </div>
 
-                <div className="bg-slate-50/50 rounded-xl p-4 border border-slate-100/60 hover:bg-white hover:shadow-sm transition-all group/stat">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Target className="h-4 w-4 text-brand-navy transition-transform group-hover/stat:scale-110" />
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Score</span>
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <Target className="h-3.5 w-3.5 text-brand-navy" />
+                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Score</span>
                     </div>
-                    <p className="text-xl font-bold text-slate-900 font-display">{score.toLocaleString()} <span className="text-[10px] text-slate-400 uppercase font-medium">Pts</span></p>
+                    <p className="ui-metric text-lg font-semibold text-slate-900">{score.toLocaleString()} <span className="text-[10px] text-slate-400 font-medium">pts</span></p>
                 </div>
             </div>
 
             <div>
-                <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Achievements</span>
-                    <span className="text-[10px] font-semibold text-slate-400">{achievements.length} Unlocked</span>
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Achievements</span>
+                    <span className="text-[10px] text-slate-400 ui-metric">{achievements.length} unlocked</span>
                 </div>
 
                 {achievements.length === 0 ? (
-                    <div className="py-4 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                        <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">Earn badges by completing goals</p>
+                    <div className="py-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                        <p className="text-xs text-slate-400">Earn badges by completing goals</p>
                     </div>
                 ) : (
                     <div className="flex flex-wrap gap-2">
                         {achievements.map((achievement) => (
                             <div
                                 key={achievement.id}
-                                className="group relative h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100 hover:border-brand-navy transition-all cursor-help"
+                                className="group relative h-9 w-9 bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100 hover:border-brand-navy transition-colors cursor-help"
                                 title={`${achievement.title}: ${achievement.description}`}
                             >
-                                <span className="text-lg">{achievement.icon}</span>
-                                <div className="absolute bottom-full mb-2 hidden group-hover:block w-32 bg-slate-900 text-white text-[8px] p-2 rounded-lg z-50">
-                                    <p className="font-black uppercase mb-1">{achievement.title}</p>
-                                    <p className="opacity-70 font-bold leading-tight">{achievement.description}</p>
+                                <span className="text-base">{achievement.icon}</span>
+                                <div className="absolute bottom-full mb-2 hidden group-hover:block w-36 bg-slate-900 text-white text-[10px] p-2 rounded-lg z-50 shadow-sm">
+                                    <p className="font-semibold mb-0.5">{achievement.title}</p>
+                                    <p className="opacity-70 leading-tight">{achievement.description}</p>
                                 </div>
                             </div>
                         ))}

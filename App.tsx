@@ -16,6 +16,7 @@ import WIGSessionView from './components/WIGSession';
 import SurveyUpload from './components/SurveyUpload';
 import SurveyAnalytics from './components/SurveyAnalytics';
 import CommitmentAnalytics from './components/CommitmentAnalytics';
+import CorrelationChart from './components/CorrelationChart';
 import ProfileDropdown from './components/ProfileDropdown';
 import AchievementToast from './components/AchievementToast';
 import { COMMITMENT_TEMPLATES } from './data/commitmentTemplates';
@@ -573,11 +574,11 @@ const App: React.FC = () => {
           )}
           {view === AppView.HISTORY && currentUser && <CommitmentHistory currentUser={currentUser} members={members} />}
           {view === AppView.SURVEYS && currentUser && (
-            <div className="space-y-6">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <h2 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Satisfaction Analytics</h2>
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Helpdesk Survey Insights</p>
+                  <h2 className="text-base font-semibold text-slate-900">Satisfaction analytics</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Helpdesk survey insights</p>
                 </div>
               </div>
               <SurveyUpload onUploadComplete={() => { }} />
@@ -585,6 +586,14 @@ const App: React.FC = () => {
                 surveys={surveys}
                 startDate={surveyStartDate}
                 onDateChange={(date) => StorageService.saveSurveyConfig({ startDate: date })}
+              />
+              <CorrelationChart
+                tickets={tickets}
+                commitments={commitments}
+                currentWeekId={getWeekId()}
+                wigConfig={wigConfig}
+                currentWins={commitments.filter(c => c.weekId === getWeekId() && c.status === 'completed').length}
+                lastTicketSync={StorageService.getTicketLastSync()}
               />
             </div>
           )}

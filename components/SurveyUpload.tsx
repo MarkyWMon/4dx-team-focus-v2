@@ -146,7 +146,7 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
             const tech = (techCol !== -1 ? parts[techCol] : undefined)?.trim(); // Fallback to undefined
 
             if (!ticketNo && !tech) continue;
-            
+
             // Filter out rows where tech is empty or looks like a ticket number (purely numeric)
             if (tech && /^\d+$/.test(tech)) {
                 continue;
@@ -265,11 +265,11 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
     };
 
     return (
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
+        <div className="ui-card">
+            <div className="flex justify-between items-center mb-3">
                 <div>
-                    <h3 className="text-lg font-black text-brand-navy uppercase tracking-tight">Upload Surveys</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TSV Format required</p>
+                    <h3 className="text-sm font-semibold text-slate-900">Upload surveys</h3>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">TSV format required</p>
                 </div>
                 <button
                     onClick={async () => {
@@ -286,9 +286,9 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
                             }
                         }
                     }}
-                    className="text-[10px] font-black uppercase text-slate-400 hover:text-brand-red transition-colors tracking-widest"
+                    className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-brand-red transition-colors"
                 >
-                    Clear All Surveys
+                    Clear all surveys
                 </button>
             </div>
 
@@ -296,8 +296,8 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`relative border-2 border-dashed rounded-2xl p-10 text-center transition-all group ${isDragging
-                    ? 'border-brand-navy bg-blue-50/50 scale-[1.02]'
+                className={`relative border border-dashed rounded-xl p-4 text-center transition-colors ${isDragging
+                    ? 'border-brand-navy bg-blue-50/50'
                     : 'border-slate-200 bg-slate-50 hover:border-brand-navy/30'
                     }`}
             >
@@ -313,42 +313,42 @@ const SurveyUpload: React.FC<SurveyUploadProps> = ({ onUploadComplete }) => {
                 />
 
                 <div className="pointer-events-none relative z-0">
-                    <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${isDragging ? 'bg-brand-navy text-white' : 'bg-white text-brand-navy shadow-sm group-hover:scale-110 duration-300'}`}>
+                    <div className={`mx-auto w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${isDragging ? 'bg-brand-navy text-white' : 'bg-white text-brand-navy border border-slate-200'}`}>
                         {isUploading ? (
-                            <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                         ) : (
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
                         )}
                     </div>
-                    <p className="text-sm font-bold text-slate-700">
+                    <p className="text-sm font-medium text-slate-700">
                         {isUploading ? 'Processing...' : (
                             <>
-                                <span className="underline text-brand-navy decoration-2 underline-offset-2">Click to upload</span> or drag and drop
+                                <span className="font-semibold text-brand-navy underline underline-offset-2">Click to upload</span> or drag and drop
                             </>
                         )}
                     </p>
-                    <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase tracking-widest">TSV files only</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mt-1">TSV files only</p>
                 </div>
             </div>
 
             {error && (
-                <div className="mt-4 p-3 bg-red-50 text-brand-red text-xs font-bold rounded-xl animate-fade-in">
+                <div className="mt-3 px-4 py-3 bg-red-50 border border-red-200 text-brand-red text-xs font-medium rounded-lg animate-fade-in">
                     {error}
                 </div>
             )}
 
             {uploadStats && (
-                <div className="mt-4 p-3 bg-green-50 text-brand-green text-xs font-bold rounded-xl flex items-center gap-2 animate-fade-in">
+                <div className="mt-3 px-4 py-3 bg-green-50 border border-emerald-200 text-brand-green text-xs font-medium rounded-lg flex items-center gap-2 animate-fade-in">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
-                    Success! Processed {uploadStats.total} surveys.
+                    Success! Processed <span className="ui-metric">{uploadStats.total}</span> surveys.
                 </div>
             )}
 
-            <div className="mt-4 bg-slate-50 rounded-xl p-4 text-[10px] text-slate-400 font-mono">
-                <p className="font-bold mb-2">Expected Columns (any order):</p>
+            <div className="mt-3 bg-slate-50 border border-slate-100 rounded-lg p-3 text-[10px] text-slate-500 font-mono">
+                <p className="font-semibold mb-1.5">Expected columns (any order):</p>
                 <p>Date | Client | Location | Ticket No | <strong>Tech</strong> | Problem Type | Q1 | Q2 | Q3</p>
                 <p className="mt-1 text-slate-400">Columns are matched by name — order doesn't matter.</p>
             </div>

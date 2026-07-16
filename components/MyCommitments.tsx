@@ -445,7 +445,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
       if (part.startsWith('[') && part.endsWith(']')) {
         const name = part.slice(1, -1);
         return (
-          <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tight mx-0.5 border ${isWhite ? 'bg-white/10 border-white/20 text-white' : 'bg-brand-navy/5 border-brand-navy/10 text-brand-navy'}`}>
+          <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide mx-0.5 border ${isWhite ? 'bg-white/10 border-white/20 text-white' : 'bg-brand-navy/5 border-brand-navy/10 text-brand-navy'}`}>
             <span className="mr-1 opacity-50">⚡</span>
             {name}
           </span>
@@ -458,18 +458,18 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
   const getStatusStyles = (c: Commitment) => {
     switch (c.status) {
       case 'completed':
-        return { container: 'bg-green-50 border-brand-green', btn: 'bg-brand-green border-brand-green text-white', text: 'text-gray-500 line-through' };
+        return { container: 'bg-green-50 border-green-200', btn: 'bg-brand-green border-brand-green text-white', text: 'text-slate-400 line-through' };
       case 'partial':
-        return { container: 'bg-orange-50 border-brand-orange', btn: 'bg-brand-orange border-brand-orange text-white', text: 'text-gray-800' };
+        return { container: 'bg-orange-50 border-orange-200', btn: 'bg-brand-orange border-brand-orange text-white', text: 'text-slate-800' };
       case 'incomplete':
       default:
-        if (isPast) return { container: 'bg-red-50 border-brand-red', btn: 'bg-white border-brand-red text-brand-red', text: 'text-brand-red font-medium' };
-        return { container: 'bg-white border-gray-200 shadow-sm', btn: 'bg-white border-gray-300', text: 'text-gray-900' };
+        if (isPast) return { container: 'bg-red-50 border-red-200', btn: 'bg-white border-brand-red text-brand-red', text: 'text-brand-red font-medium' };
+        return { container: 'bg-white border-slate-200', btn: 'bg-white border-slate-300 hover:border-brand-navy', text: 'text-slate-900' };
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 pb-12">
+    <div className="max-w-3xl mx-auto space-y-3 pb-12">
 
       {/* Template Library Modal */}
       {showTemplates && (
@@ -482,19 +482,19 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
 
       {/* AI Validation Modal - Enforces Lead Measure Alignment */}
       {showValidationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-navy bg-opacity-95 backdrop-blur-md">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl animate-fade-in overflow-hidden border-4 border-white">
-            <div className="p-6 bg-slate-50 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-brand-navy uppercase tracking-tight">
-                {isFromTemplate ? '⚡ Pick a Lead Measure' : isValidating ? '🔍 Analysing Alignment...' : checkResult?.isAligned ? '✅ Aligned!' : '⚠️ Alignment Required'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl animate-fade-in overflow-hidden border border-slate-200">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-900">
+                {isFromTemplate ? 'Pick a lead measure' : isValidating ? 'Analysing alignment…' : checkResult?.isAligned ? 'Aligned ✓' : 'Alignment required'}
               </h3>
-              <p className="text-slate-500 text-xs mt-1">"{pendingCommitment}"</p>
+              <p className="text-slate-500 text-xs mt-0.5 line-clamp-2">"{pendingCommitment}"</p>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-4 space-y-3">
               {isFromTemplate ? (
                 <>
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <p className="text-blue-800 text-sm font-medium">
                       This is a pre-vetted template. Choose which Lead Measure it should count toward.
                     </p>
@@ -519,11 +519,11 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                                 setTemplateSuggestedMeasureId(null);
                               }
                             }}
-                            className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors border-2 ${isAtCapacity
-                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed border-gray-200'
+                            className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors border ${isAtCapacity
+                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-100'
                               : isSuggested
-                                ? 'bg-brand-navy text-white border-brand-navy shadow-lg'
-                                : 'bg-slate-100 hover:bg-brand-navy hover:text-white border-slate-100'
+                                ? 'bg-brand-navy text-white border-brand-navy'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-brand-navy'
                               }`}
                           >
                             {isSuggested && '⚡ '}{m.name} {isAtCapacity && '(Full)'}
@@ -542,28 +542,28 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                           setIsFromTemplate(false);
                           setTemplateSuggestedMeasureId(null);
                         }}
-                        className="px-4 py-2 bg-brand-navy text-white text-xs font-bold rounded-lg hover:bg-black transition-colors"
+                        className="px-4 py-2 bg-brand-navy text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-colors"
                       >
-                        Add Commitment
+                        Add commitment
                       </button>
                     </div>
                   )}
                 </>
               ) : isValidating ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-navy/20 border-t-brand-navy"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-brand-navy/20 border-t-brand-navy"></div>
                 </div>
               ) : checkResult ? (
                 <>
                   {/* Alignment Status */}
                   {checkResult.isAligned ? (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                       <p className="text-green-800 text-sm font-medium">
                         ✓ Linked to: <strong>{checkResult.linkedLeadMeasureName}</strong>
                       </p>
                     </div>
                   ) : (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                       <p className="text-amber-800 text-sm font-medium mb-2">
                         This commitment doesn't clearly align with any of your team's Lead Measures.
                       </p>
@@ -575,8 +575,8 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
 
                   {/* Suggested Alternative (also shown when "aligned" but the AI named no measure, so the user isn't stuck) */}
                   {checkResult.suggestedAlternative && (!checkResult.isAligned || !checkResult.linkedLeadMeasureId) && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                      <p className="text-blue-700 text-[10px] uppercase font-bold tracking-widest mb-2">💡 Suggested Alternative</p>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-blue-700 text-[10px] font-semibold uppercase tracking-wide mb-2">Suggested alternative</p>
                       <p className="text-blue-900 text-sm font-medium mb-3">{checkResult.suggestedAlternative}</p>
                       <p className="text-blue-600 text-xs mb-2">Select which Lead Measure this applies to:</p>
                       <div className="flex flex-wrap gap-2">
@@ -593,9 +593,9 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                                 setPendingCommitment('');
                                 setCheckResult(null);
                               }}
-                              className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors ${isAtCapacity
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${isAtCapacity
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-brand-navy hover:opacity-90 text-white'
                                 }`}
                             >
                               {m.name} {isAtCapacity && '(Full)'}
@@ -624,9 +624,9 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                                 setPendingCommitment('');
                                 setCheckResult(null);
                               }}
-                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${isAtCapacity
-                                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                  : 'bg-slate-100 hover:bg-brand-navy hover:text-white'
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors border ${isAtCapacity
+                                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-100'
+                                  : 'bg-white border-slate-200 text-slate-600 hover:border-brand-navy'
                                 }`}
                             >
                               {m.name} {isAtCapacity && '(Full)'}
@@ -639,7 +639,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                 </>
               ) : (
                 <>
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                     <p className="text-amber-800 text-sm font-medium">
                       {validationError || 'No validation result available right now.'}
                     </p>
@@ -661,9 +661,9 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                                 setPendingCommitment('');
                                 setCheckResult(null);
                               }}
-                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${isAtCapacity
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                : 'bg-slate-100 hover:bg-brand-navy hover:text-white'
+                              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors border ${isAtCapacity
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-100'
+                                : 'bg-white border-slate-200 text-slate-600 hover:border-brand-navy'
                                 }`}
                             >
                               {m.name} {isAtCapacity && '(Full)'}
@@ -690,7 +690,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowValidationModal(false);
@@ -720,79 +720,53 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
       )}
 
       {/* Week Navigation Header */}
-      <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-        <button onClick={onPrevWeek} className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+      <div className="ui-card !py-2.5 flex items-center justify-between">
+        <button onClick={onPrevWeek} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors" aria-label="Previous week">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
         </button>
         <div className="text-center">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide font-display">
-            {isPast ? <span className="text-brand-red">Past Week</span> : isCurrent ? <span className="text-brand-green">Current Week</span> : <span className="text-brand-navy">Future Planning</span>}
-          </h2>
-          <h1 className="text-lg font-bold text-gray-900 font-display">{formatWeekDisplay(selectedWeekId)}</h1>
+          <div className="text-[10px] font-semibold uppercase tracking-wide">
+            {isPast ? <span className="text-brand-red">Past week</span> : isCurrent ? <span className="text-brand-green">Current week</span> : <span className="text-brand-navy">Future planning</span>}
+          </div>
+          <h1 className="text-base font-semibold text-slate-900 ui-metric">{formatWeekDisplay(selectedWeekId)}</h1>
         </div>
-        <button onClick={onNextWeek} className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+        <button onClick={onNextWeek} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors" aria-label="Next week">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
         </button>
       </div>
 
-      <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
-        <div className="p-6 bg-brand-navy text-white relative overflow-hidden">
-          <div className="absolute right-0 top-0 opacity-10 transform translate-x-1/4 -translate-y-1/4">
-            <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd"></path></svg>
-          </div>
-          <h2 className="text-xl font-bold font-display relative z-10">My Weekly Commitments</h2>
-          <p className="text-blue-100 mt-1 font-light relative z-10">
+      <div className="ui-card">
+        <div className="pb-3 border-b border-slate-100">
+          <h2 className="text-base font-semibold text-slate-900">My weekly commitments</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
             Select high-leverage actions to impact our WIG.
           </p>
 
           {/* Lead Measure Requirements Guide */}
           {leadMeasures.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2 relative z-10">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {measureCommitmentCounts.map(measure => (
-                <div
+                <span
                   key={measure.id}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${measure.isOver
-                    ? 'bg-amber-500/20 border border-amber-400/40 text-amber-200'
+                  className={`ui-chip border ${measure.isOver
+                    ? 'bg-amber-50 border-amber-200 text-amber-700'
                     : measure.isFull
-                      ? 'bg-green-500/20 border border-green-400/40 text-green-200'
-                      : 'bg-white/10 border border-white/20 text-white'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : 'bg-slate-50 border-slate-200 text-slate-600'
                     }`}
                 >
-                  <span className="uppercase tracking-wider">{measure.name}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${measure.isOver
-                    ? 'bg-amber-400 text-amber-900'
-                    : measure.isFull
-                      ? 'bg-green-400 text-green-900'
-                      : 'bg-white/20 text-white'
-                    }`}>
-                    {measure.currentCount}/{measure.target}
-                  </span>
-                  {measure.isOver && (
-                    <svg className="w-3.5 h-3.5 text-amber-300" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  {measure.isFull && !measure.isOver && (
-                    <svg className="w-3.5 h-3.5 text-green-300" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
+                  {measure.name}
+                  <span className="ui-metric">{measure.currentCount}/{measure.target}</span>
+                  {measure.isOver && <span aria-hidden>▲</span>}
+                  {measure.isFull && !measure.isOver && <span aria-hidden>✓</span>}
+                </span>
               ))}
               {allMeasuresMet && (
-                <div className="flex items-center gap-1 px-3 py-1.5 bg-green-500/30 border border-green-400/50 rounded-lg text-green-200 text-xs font-bold">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  All targets met!
-                </div>
+                <span className="ui-chip bg-emerald-50 border border-emerald-200 text-emerald-700">All targets met ✓</span>
               )}
               {/* Warning for imbalanced commitments */}
               {hasImbalance && (
-                <div className="flex items-center gap-1 px-3 py-1.5 bg-amber-500/30 border border-amber-400/50 rounded-lg text-amber-200 text-xs font-bold">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
+                <span className="ui-chip bg-amber-50 border border-amber-200 text-amber-700">
                   {overCommittedMeasures.length > 0 && (
                     <span>Too many: {overCommittedMeasures.map(m => m.name).join(', ')}</span>
                   )}
@@ -800,70 +774,67 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                   {isSlotsFilledButImbalanced && underCommittedMeasures.length > 0 && (
                     <span>Need more: {underCommittedMeasures.map(m => m.name).join(', ')}</span>
                   )}
-                </div>
+                </span>
               )}
             </div>
           )}
         </div>
 
 
-        <div className="p-6">
+        <div className="pt-3">
           {showSuggestions && (
-            <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-5 animate-fade-in shadow-inner">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-base font-bold text-brand-navy flex items-center font-display">
-                  <svg className="w-5 h-5 mr-2 text-brand-orange" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" /></svg>
-                  Suggested Commitments
-                </h3>
-                <button onClick={() => setShowSuggestions(false)} className="text-xs text-gray-500 hover:text-gray-800 bg-white px-2 py-1 rounded border">Close</button>
+            <div className="mb-4 bg-slate-50 border border-slate-200 rounded-xl p-4 animate-fade-in">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-semibold text-slate-900">Suggested commitments</h3>
+                <button onClick={() => setShowSuggestions(false)} className="text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg px-2 py-1 transition-colors">Close</button>
               </div>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
                 {suggestions.length === 0 ? (
-                  <div className="bg-white border border-blue-100 rounded-lg p-4 text-sm text-slate-600">
+                  <div className="bg-white border border-slate-200 rounded-lg p-3 text-sm text-slate-600">
                     {suggestionError || 'No suggestions available yet.'}
                   </div>
                 ) : (
                   suggestions.map((s) => (
-                    <div key={s.id} className={`bg-white p-3 rounded-lg border border-blue-100 shadow-sm transition-all duration-300 ${s.isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+                    <div key={s.id} className={`bg-white p-3 rounded-lg border border-slate-200 transition-all duration-300 ${s.isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
                       <div className="flex gap-2 items-center">
                         <div className="flex-grow">
                           <div className="flex items-center gap-2 mb-1">
                             {s.leadMeasureName && (
-                              <span className="text-[8px] font-black uppercase text-brand-navy bg-slate-100 px-1.5 py-0.5 rounded tracking-widest border border-slate-200">
+                              <span className="ui-chip bg-slate-100 text-slate-500">
                                 {s.leadMeasureName}
                               </span>
                             )}
-                            <p className="text-sm font-bold text-gray-800 leading-snug">
+                            <p className="text-sm font-medium text-slate-800 leading-snug">
                               {renderRichDescription(s.commitment)}
                             </p>
                           </div>
                         </div>
-                        <button onClick={() => addSuggestion(s.id)} disabled={isFull} className="px-3 py-1 bg-brand-navy text-white text-xs font-bold rounded hover:bg-opacity-90 disabled:opacity-50">Add</button>
+                        <button onClick={() => addSuggestion(s.id)} disabled={isFull} className="px-3 py-1.5 bg-brand-navy text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-all">Add</button>
                       </div>
-                      <p className="text-[11px] text-gray-500 italic mt-1">{s.rationale}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">{s.rationale}</p>
                     </div>
                   ))
                 )}
               </div>
-              <div className="mt-3 text-center border-t border-blue-100 pt-2">
-                <p className="text-[10px] text-gray-400 italic">
-                  🤖 These suggestions are AI-generated based on recent ticket trends. Please review and edit them to ensure they are safe and accurate before committing.
+              <div className="mt-3 border-t border-slate-200 pt-2">
+                <p className="text-[10px] text-slate-400">
+                  These suggestions are AI-generated based on recent ticket trends. Please review and edit them to ensure they are safe and accurate before committing.
                 </p>
               </div>
             </div>
           )}
 
           {!isPast && (
-            <div className="mb-8">
+            <div className="mb-4">
               <div className="flex justify-between items-end mb-2">
-                <label className="text-sm font-bold text-gray-700 font-display">Craft Your Commitment</label>
+                <label className="text-sm font-semibold text-slate-900">Craft your commitment</label>
                 <div className="flex gap-2">
-                  <button onClick={() => setShowTemplates(true)} disabled={isFull} className="text-xs font-bold text-brand-navy hover:text-brand-red transition-colors flex items-center disabled:opacity-50">
-                    <span className="text-lg mr-1">⚡</span> Browse Templates
+                  <button onClick={() => setShowTemplates(true)} disabled={isFull} className="text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg px-2 py-1 transition-colors flex items-center disabled:opacity-50">
+                    ⚡ Browse templates
                   </button>
-                  <button onClick={handleGenerateSuggestions} disabled={isGenerating} className="text-xs font-bold text-brand-orange hover:text-brand-red transition-colors flex items-center disabled:opacity-50">
+                  <button onClick={handleGenerateSuggestions} disabled={isGenerating} className="text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg px-2 py-1 transition-colors flex items-center disabled:opacity-50">
                     <svg className={`w-3 h-3 mr-1 ${isGenerating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    {isGenerating ? 'Generating...' : 'Inspire Me'}
+                    {isGenerating ? 'Generating…' : 'Inspire me'}
                   </button>
                 </div>
               </div>
@@ -877,21 +848,21 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                       onChange={(e) => { setNewCommitment(e.target.value); setCheckResult(null); if (!e.target.value) lastCheckedTextRef.current = ''; }}
                       placeholder={isFull ? "Max commitments reached" : "I commit to..."}
                       disabled={!canAdd}
-                      className="w-full rounded-xl border-gray-200 shadow-sm focus:ring-brand-navy focus:border-brand-navy border p-4 pr-24 disabled:bg-gray-50 text-gray-900 transition-all"
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-navy outline-none px-3 py-2 pr-24 text-sm disabled:bg-slate-50 text-slate-900 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={handleCheckCommitment}
                       disabled={!newCommitment.trim() || isChecking}
-                      className="absolute right-2 top-2 bottom-2 px-3 text-[10px] font-bold uppercase tracking-wider text-brand-navy hover:text-brand-red border-l border-gray-100 transition-colors disabled:opacity-30"
+                      className="absolute right-2 top-1 bottom-1 px-3 text-[10px] font-semibold uppercase tracking-wide text-brand-navy hover:text-slate-900 border-l border-slate-100 transition-colors disabled:opacity-30"
                     >
-                      {isChecking ? 'Checking...' : 'Check Strategy'}
+                      {isChecking ? 'Checking…' : 'Check strategy'}
                     </button>
                   </div>
                   <button
                     type="submit"
                     disabled={!canAdd || !newCommitment.trim() || isChecking}
-                    className="px-8 py-4 bg-brand-red text-white font-bold rounded-xl hover:bg-brand-darkRed disabled:bg-gray-300 transition-all font-display"
+                    className="px-4 py-2 bg-brand-navy text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-all"
                   >
                     Add
                   </button>
@@ -899,17 +870,17 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
               </form>
 
               {checkResult && (
-                <div className={`mt-4 p-5 rounded-2xl border-2 animate-fade-in ${checkResult.isEffective && !checkResult.isRedundant && !checkResult.isOverlapping ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-                  <div className="flex items-start gap-4">
-                    <div className={`p-2 rounded-full ${checkResult.isEffective && !checkResult.isRedundant && !checkResult.isOverlapping ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
+                <div className={`mt-3 p-3 rounded-lg border animate-fade-in ${checkResult.isEffective && !checkResult.isRedundant && !checkResult.isOverlapping ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`p-1.5 rounded-full ${checkResult.isEffective && !checkResult.isRedundant && !checkResult.isOverlapping ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
                     </div>
                     <div className="flex-grow">
-                      <h4 className={`text-sm font-bold uppercase tracking-wider font-display ${checkResult.isEffective ? 'text-green-800' : 'text-amber-800'}`}>Coach Feedback</h4>
-                      <p className="text-sm text-gray-700 leading-relaxed mt-2">{checkResult.feedback}</p>
+                      <h4 className={`text-sm font-semibold ${checkResult.isEffective ? 'text-green-800' : 'text-amber-800'}`}>Coach feedback</h4>
+                      <p className="text-sm text-slate-700 leading-relaxed mt-1">{checkResult.feedback}</p>
                       {checkResult.suggestedAlternative && (
-                        <div className="mt-3 p-3 bg-white/70 border border-blue-200 rounded-xl">
-                          <p className="text-blue-700 text-[10px] uppercase font-bold tracking-widest mb-1">💡 Suggested Alternative</p>
+                        <div className="mt-2 p-3 bg-white/70 border border-blue-200 rounded-lg">
+                          <p className="text-blue-700 text-[10px] font-semibold uppercase tracking-wide mb-1">Suggested alternative</p>
                           <p className="text-sm text-blue-900 font-medium">{checkResult.suggestedAlternative}</p>
                           <button
                             type="button"
@@ -917,7 +888,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                               setNewCommitment(checkResult.suggestedAlternative!);
                               setCheckResult(null);
                             }}
-                            className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+                            className="mt-2 px-3 py-1.5 bg-brand-navy hover:opacity-90 text-white text-xs font-semibold rounded-lg transition-colors"
                           >
                             Use this wording
                           </button>
@@ -930,10 +901,10 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-2">
             {commitments.length === 0 && (
-              <div className="text-center py-12 border-2 border-dashed border-gray-100 rounded-2xl">
-                <p className="text-gray-600 italic font-display uppercase text-xs tracking-widest">No active commitments</p>
+              <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl">
+                <p className="text-slate-500 text-xs">No active commitments</p>
               </div>
             )}
             {commitments.map(commitment => {
@@ -941,7 +912,7 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
               const isEditing = editingId === commitment.id;
 
               return (
-                <div key={commitment.id} className={`flex items-center p-5 rounded-2xl border transition-all animate-fade-in ${styles.container}`}>
+                <div key={commitment.id} className={`flex items-center px-4 py-3 rounded-xl border transition-all animate-fade-in ${styles.container}`}>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -954,10 +925,10 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                       }
                     }}
                     disabled={isEditing || isPast}
-                    className={`flex-shrink-0 h-8 w-8 rounded-full border-2 flex items-center justify-center transition-all mr-5 focus:outline-none ${styles.btn}`}
+                    className={`flex-shrink-0 h-6 w-6 rounded-full border flex items-center justify-center transition-all mr-3 focus:outline-none ${styles.btn}`}
                   >
-                    {commitment.status === 'completed' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                    {commitment.status === 'partial' && <div className="w-3 h-3 bg-white rounded-full"></div>}
+                    {commitment.status === 'completed' && <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                    {commitment.status === 'partial' && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
                   </button>
 
                   <div className="flex-grow" onClick={() => !isEditing && openProofModal(commitment)}>
@@ -966,20 +937,20 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
                         type="text"
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
-                        className="w-full p-2 border-b-2 border-brand-navy focus:outline-none bg-transparent font-medium"
+                        className="w-full p-2 border-b border-brand-navy focus:outline-none bg-transparent text-sm font-medium"
                         autoFocus
                       />
                     ) : (
                       <>
-                        <p className={`text-base font-semibold leading-relaxed ${styles.text} cursor-pointer hover:text-brand-navy text-brand-navy`}>
+                        <p className={`text-sm font-medium leading-relaxed ${styles.text} cursor-pointer hover:text-brand-navy`}>
                           {renderRichDescription(commitment.description)}
                         </p>
-                        <div className="flex items-center mt-1 space-x-4">
-                          <span className="text-[10px] text-gray-600 font-semibold uppercase">SET: {formatDateShort(commitment.createdAt)}</span>
+                        <div className="flex items-center mt-1 space-x-3">
+                          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Set {formatDateShort(commitment.createdAt)}</span>
                           {(commitment.completionNote || commitment.completionPhoto) && (
-                            <span className="text-[10px] text-brand-green font-semibold uppercase flex items-center gap-1">
+                            <span className="text-[10px] font-semibold text-brand-green uppercase tracking-wide flex items-center gap-1">
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
-                              Proof Logged
+                              Proof logged
                             </span>
                           )}
                         </div>
@@ -989,13 +960,13 @@ const MyCommitments: React.FC<MyCommitmentsProps> = ({
 
                   <div className="flex items-center ml-4 space-x-2">
                     {isEditing ? (
-                      <button onClick={() => { onUpdate(commitment.id, { description: editValue.trim() }); setEditingId(null); }} className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg></button>
+                      <button onClick={() => { onUpdate(commitment.id, { description: editValue.trim() }); setEditingId(null); }} className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg></button>
                     ) : (
                       <>
                         {!isPast && (
-                          <button onClick={() => { setEditingId(commitment.id); setEditValue(commitment.description); }} className="p-2 text-gray-400 hover:text-brand-navy hover:bg-gray-100 rounded-lg transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                          <button onClick={() => { setEditingId(commitment.id); setEditValue(commitment.description); }} className="p-2 text-slate-400 hover:text-brand-navy hover:bg-slate-100 rounded-lg transition-all"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
                         )}
-                        <button onClick={() => onDelete(commitment.id)} className="p-2 text-gray-400 hover:text-brand-red hover:bg-red-50 rounded-lg transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                        <button onClick={() => onDelete(commitment.id)} className="p-2 text-slate-400 hover:text-brand-red hover:bg-red-50 rounded-lg transition-all"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                       </>
                     )}
                   </div>

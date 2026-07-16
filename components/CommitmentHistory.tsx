@@ -52,31 +52,31 @@ const CommitmentHistory: React.FC<CommitmentHistoryProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12 animate-fade-in">
+    <div className="max-w-4xl mx-auto space-y-3 pb-12 animate-fade-in">
 
-      {/* Target Selector & Header */}
-      <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex items-center gap-6">
-          <div className="h-20 w-20 bg-brand-navy rounded-3xl flex items-center justify-center text-white text-3xl font-black shadow-2xl">
+      {/* Target selector & header */}
+      <div className="ui-card flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 bg-brand-navy rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0">
             {targetMember.avatar}
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 font-display uppercase tracking-tight leading-none">
-              {targetMember.id === currentUser.id ? 'My Execution History' : `${targetMember.name}'s History`}
+            <h2 className="text-base font-semibold text-slate-900">
+              {targetMember.id === currentUser.id ? 'My execution history' : `${targetMember.name}'s history`}
             </h2>
-            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-3">
-              Performance audit since first commitment
+            <p className="text-xs text-slate-500 mt-0.5">
+              Performance since first commitment
             </p>
           </div>
         </div>
 
         {isManager && (
           <div className="w-full md:w-64">
-            <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 ml-1">Focus On:</label>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Focus on</label>
             <select
               value={targetMemberId}
               onChange={(e) => setTargetMemberId(e.target.value)}
-              className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl p-3 font-bold text-sm text-slate-900 outline-none focus:ring-4 focus:ring-brand-red/5 transition-all"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-navy transition-colors"
             >
               {members.map(m => (
                 <option key={m.id} value={m.id}>{m.name}</option>
@@ -86,74 +86,70 @@ const CommitmentHistory: React.FC<CommitmentHistoryProps> = ({
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-50 text-center">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Completion Rate</p>
-          <p className="text-3xl font-black text-brand-navy">{historyData.stats.rate}%</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="ui-card !p-3">
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Completion rate</p>
+          <p className="ui-metric text-xl font-semibold text-brand-navy mt-0.5">{historyData.stats.rate}%</p>
         </div>
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-50 text-center">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Set</p>
-          <p className="text-3xl font-black text-slate-900">{historyData.stats.total}</p>
+        <div className="ui-card !p-3">
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Total set</p>
+          <p className="ui-metric text-xl font-semibold text-slate-900 mt-0.5">{historyData.stats.total}</p>
         </div>
-        <div className="bg-green-50 p-6 rounded-3xl border border-green-100 text-center">
-          <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-2">Completed</p>
-          <p className="text-3xl font-black text-green-700">{historyData.stats.completed}</p>
+        <div className="ui-card !p-3">
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Completed</p>
+          <p className="ui-metric text-xl font-semibold text-emerald-600 mt-0.5">{historyData.stats.completed}</p>
         </div>
-        <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 text-center">
-          <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-2">Partial</p>
-          <p className="text-3xl font-black text-orange-700">{historyData.stats.partial}</p>
+        <div className="ui-card !p-3">
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Partial</p>
+          <p className="ui-metric text-xl font-semibold text-amber-600 mt-0.5">{historyData.stats.partial}</p>
         </div>
       </div>
 
-      <div className="space-y-12 relative py-8">
-        <div className="absolute left-8 top-0 bottom-0 w-1 bg-slate-100 -z-10 rounded-full"></div>
+      <div className="space-y-4 relative py-2">
+        <div className="absolute left-[7px] top-0 bottom-0 w-px bg-slate-200 -z-10"></div>
 
         {historyData.weeks.length === 0 ? (
-          <div className="bg-white p-12 rounded-[2.5rem] text-center border-2 border-dashed border-slate-100">
-            <p className="text-slate-300 font-bold uppercase tracking-[0.3em] text-xs">No execution records found</p>
+          <div className="ui-card text-center border-dashed">
+            <p className="text-xs text-slate-400">No execution records found</p>
           </div>
         ) : (
           historyData.weeks.map((weekId) => (
-            <div key={weekId} className="relative pl-24 group">
-              <div className="absolute left-[26px] top-4 w-4 h-4 rounded-full border-4 border-white bg-brand-red group-hover:scale-150 transition-all z-10 shadow-lg"></div>
+            <div key={weekId} className="relative pl-8">
+              <div className="absolute left-0 top-1 w-[15px] h-[15px] rounded-full border-2 border-white bg-brand-navy z-10"></div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-lg font-black text-slate-900 font-display uppercase tracking-tight">
-                    {formatWeekDisplay(weekId)}
-                  </h3>
-                </div>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {formatWeekDisplay(weekId)}
+                </h3>
 
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 gap-3">
                   {historyData.grouped[weekId].map(c => (
-                    <div key={c.id} className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 hover:shadow-xl transition-all border-l-8 border-l-slate-100 relative group/card">
-                      <div className={`absolute top-8 right-8 w-4 h-4 rounded-full ${getStatusColor(c.status)} shadow-sm`}></div>
+                    <div key={c.id} className="ui-card relative">
+                      <div className={`absolute top-4 right-4 w-2.5 h-2.5 rounded-full ${getStatusColor(c.status)}`}></div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div>
-                          <p className="text-lg font-black text-slate-900 leading-snug mb-2 uppercase tracking-tight">{c.description}</p>
-                          <div className="flex gap-4 items-center mt-4">
-                            <div>
-                              <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Logged On</p>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase">{formatDateShort(c.createdAt)}</p>
-                            </div>
-                            <span className={`text-[9px] font-black uppercase px-2 py-1 rounded-md text-white ${getStatusColor(c.status)}`}>
+                          <p className="text-sm font-medium text-slate-900 leading-snug pr-6">{c.description}</p>
+                          <div className="flex gap-3 items-center mt-2">
+                            <span className="text-[10px] text-slate-500">
+                              Logged {formatDateShort(c.createdAt)}
+                            </span>
+                            <span className={`ui-chip text-white ${getStatusColor(c.status)}`}>
                               {c.status}
                             </span>
                           </div>
 
                           {c.completionNote && (
-                            <div className="mt-6 p-6 bg-slate-50 rounded-2xl border-2 border-slate-100">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Completion Note</p>
-                              <p className="text-sm font-bold text-slate-700 leading-relaxed italic">"{c.completionNote}"</p>
+                            <div className="mt-3 px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
+                              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Completion note</p>
+                              <p className="text-sm text-slate-700 leading-relaxed">"{c.completionNote}"</p>
                             </div>
                           )}
                         </div>
 
                         {c.completionPhoto && (
-                          <div className="relative group/photo">
-                            <img src={c.completionPhoto} alt="Proof" className="w-full h-64 object-cover rounded-2xl shadow-lg border-4 border-white group-hover:scale-[1.02] transition-transform" />
-                            <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/10"></div>
+                          <div className="relative">
+                            <img src={c.completionPhoto} alt="Proof" className="w-full h-48 object-cover rounded-lg border border-slate-200" />
                           </div>
                         )}
                       </div>

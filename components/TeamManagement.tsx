@@ -83,7 +83,7 @@ interface TeamManagementProps {
 
   const Chevron = ({ isOpen }: { isOpen: boolean }) => (
     <svg
-      className={`w-5 h-5 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+      className={`w-4 h-4 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
       fill="none"
       stroke="currentColor"
       viewBox="0 0 24 24"
@@ -202,44 +202,44 @@ interface TeamManagementProps {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-5xl mx-auto pb-20">
+    <div className="space-y-3 animate-fade-in max-w-5xl mx-auto pb-20">
       {/* Team Members Section */}
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div
-          className="p-8 flex justify-between items-center cursor-pointer group hover:bg-slate-50 transition-colors"
+          className="px-4 py-3 flex justify-between items-center cursor-pointer group hover:bg-slate-50 transition-colors"
           onClick={() => toggleSection('roster')}
         >
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase font-display">Team Members</h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-              {expanded.roster ? 'Manage team access and roles' : `${members.length} Members`}
+            <h2 className="text-base font-semibold text-slate-900">Team members</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {expanded.roster ? 'Manage team access and roles' : `${members.length} members`}
             </p>
           </div>
-          <div className="text-slate-300 group-hover:text-brand-navy transition-colors">
+          <div className="text-slate-400 group-hover:text-brand-navy transition-colors">
             <Chevron isOpen={expanded.roster} />
           </div>
         </div>
 
         {expanded.roster && (
-          <div className="p-6 pt-0 animate-fade-in">
-            <form onSubmit={handleInvite} className="space-y-3 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div className="px-4 pb-4 animate-fade-in">
+            <form onSubmit={handleInvite} className="space-y-2 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <input
-                  className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none focus:ring-4 focus:ring-brand-navy/5 transition-all"
-                  placeholder="Staff Name"
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-navy transition-colors"
+                  placeholder="Staff name"
                   value={inviteName}
                   onChange={e => setInviteName(e.target.value)}
                   disabled={isInviting}
                 />
                 <input
-                  className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none focus:ring-4 focus:ring-brand-navy/5 transition-all"
-                  placeholder="BHASVIC Email"
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-navy transition-colors"
+                  placeholder="BHASVIC email"
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}
                   disabled={isInviting}
                 />
                 <select
-                  className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium outline-none"
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-navy"
                   value={inviteRole}
                   onChange={e => setInviteRole(e.target.value as any)}
                   disabled={isInviting}
@@ -251,7 +251,7 @@ interface TeamManagementProps {
                 <button
                   type="submit"
                   disabled={isInviting}
-                  className="bg-brand-navy text-white font-semibold text-sm rounded-lg hover:bg-black transition-all shadow-md active:scale-95 px-4 py-2.5 disabled:opacity-50 flex items-center justify-center"
+                  className="bg-brand-navy text-white font-semibold text-sm rounded-lg hover:opacity-90 transition-all px-4 py-2 disabled:opacity-40 flex items-center justify-center"
                 >
                   {isInviting ? (
                     <span className="flex items-center gap-2">
@@ -261,26 +261,26 @@ interface TeamManagementProps {
                       </svg>
                       Authorising...
                     </span>
-                  ) : "Authorise Access"}
+                  ) : "Authorise access"}
                 </button>
               </div>
 
               {inviteError && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold animate-shake">
+                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-semibold animate-shake">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   {inviteError}
                 </div>
               )}
 
               {inviteSuccess && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg text-xs font-bold animate-fade-in">
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 text-green-700 rounded-lg text-xs font-semibold animate-fade-in">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                   Staff member added successfully!
                 </div>
               )}
             </form>
 
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <button
                 onClick={async () => {
                   if (!confirm('This will merge duplicate member records in Firestore, reassign any commitments to the canonical record, and delete orphans. Continue?')) return;
@@ -296,7 +296,7 @@ interface TeamManagementProps {
                   }
                 }}
                 disabled={isMerging}
-                className="text-[10px] font-black text-white bg-amber-500 hover:bg-amber-600 px-4 py-2 rounded-xl uppercase tracking-widest transition-all shadow-sm disabled:opacity-50 flex items-center gap-2"
+                className="text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 px-3 py-2 rounded-lg transition-colors disabled:opacity-40 flex items-center gap-2"
               >
                 {isMerging ? (
                   <>
@@ -306,10 +306,10 @@ interface TeamManagementProps {
                     </svg>
                     Merging...
                   </>
-                ) : '🔄 Merge Duplicates'}
+                ) : '🔄 Merge duplicates'}
               </button>
               {mergeResult && (
-                <span className="text-[10px] font-bold text-green-600 uppercase tracking-widest animate-fade-in">
+                <span className="text-xs font-semibold text-brand-green animate-fade-in">
                   ✓ Merged {mergeResult.merged} duplicates, moved {mergeResult.commitmentsMoved} commitments
                 </span>
               )}
@@ -317,21 +317,21 @@ interface TeamManagementProps {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {members.sort((a, b) => a.name.localeCompare(b.name)).map(m => (
-                <div key={m.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all group border-l-4 border-l-slate-100 hover:border-l-brand-navy">
+                <div key={m.id} className="flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-xl hover:border-brand-navy transition-colors group">
                   <div className="flex items-center gap-3 overflow-hidden cursor-pointer" onClick={() => setSelectedMember(m)}>
-                    <div className="h-9 w-9 bg-slate-100 text-slate-500 rounded-lg flex items-center justify-center font-semibold text-xs shadow-sm group-hover:bg-brand-navy group-hover:text-white transition-colors">
+                    <div className="h-8 w-8 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-semibold text-xs group-hover:bg-brand-navy group-hover:text-white transition-colors shrink-0">
                       {m.avatar}
                     </div>
                     <div className="overflow-hidden">
                       <p className="text-sm font-semibold text-slate-900 leading-none truncate">{m.name}</p>
-                      <p className="text-[10px] font-semibold text-brand-red uppercase mt-1 tracking-wide">{m.role}</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mt-1">{m.role}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => setSelectedMember(m)} className="p-1.5 text-slate-300 hover:text-brand-navy transition-all" title="View details">
+                    <button onClick={() => setSelectedMember(m)} className="p-1.5 text-slate-400 hover:text-brand-navy transition-colors" title="View details">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                     </button>
-                    <button onClick={() => { if (confirm(`Revoke access for ${m.name}?`)) onRemoveMember(m.id); }} className="p-1.5 text-slate-300 hover:text-brand-red transition-all">
+                    <button onClick={() => { if (confirm(`Revoke access for ${m.name}?`)) onRemoveMember(m.id); }} className="p-1.5 text-slate-400 hover:text-brand-red transition-colors">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </div>
@@ -344,108 +344,106 @@ interface TeamManagementProps {
 
 
       {/* Annual WIG Configuration Section */}
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div
-          className="p-8 flex justify-between items-center cursor-pointer group hover:bg-slate-50 transition-colors"
+          className="px-4 py-3 flex justify-between items-center cursor-pointer group hover:bg-slate-50 transition-colors"
           onClick={() => toggleSection('wig')}
         >
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase font-display">WIG Configuration</h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Goal setting & lag/lead definitions</p>
+            <h2 className="text-base font-semibold text-slate-900">WIG configuration</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Goal setting & lag/lead definitions</p>
           </div>
-          <div className="flex items-center gap-6">
-            {isWigSaved && <span className="text-brand-green font-black uppercase text-[10px] animate-pulse">Configuration Saved</span>}
-            <div className="text-slate-300 group-hover:text-brand-navy transition-colors">
+          <div className="flex items-center gap-4">
+            {isWigSaved && <span className="text-brand-green font-semibold text-xs animate-pulse">Configuration saved</span>}
+            <div className="text-slate-400 group-hover:text-brand-navy transition-colors">
               <Chevron isOpen={expanded.wig} />
             </div>
           </div>
         </div>
 
         {expanded.wig && (
-          <div className="p-8 pt-0 animate-fade-in">
-            <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="md:col-span-2 lg:col-span-1">
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">WIG Title</label>
-                  <input className="w-full p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:border-brand-navy" value={wigTitle} onChange={(e) => setWigTitle(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">Target Value</label>
-                  <input type="number" step="0.01" className="w-full p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:border-brand-navy" value={wigTarget} onChange={(e) => setWigTarget(Number(e.target.value))} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">Current Value</label>
-                  <input type="number" step="0.01" className="w-full p-4 bg-white border border-slate-200 rounded-xl font-bold text-sm outline-none focus:border-brand-navy" value={wigCurrent} onChange={(e) => setWigCurrent(Number(e.target.value))} />
-                </div>
+          <div className="px-4 pb-4 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="md:col-span-2 lg:col-span-1">
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">WIG title</label>
+                <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" value={wigTitle} onChange={(e) => setWigTitle(e.target.value)} />
               </div>
-
-              <div className="mt-8 bg-white p-6 rounded-2xl border border-slate-100">
-                <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">WIG Meeting Day</label>
-                <p className="text-xs text-slate-500 mb-4">Each "WIG week" runs from this day to the day before. Commitments and scoring align to this cycle.</p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { v: 1, label: 'Mon' },
-                    { v: 2, label: 'Tue' },
-                    { v: 3, label: 'Wed' },
-                    { v: 4, label: 'Thu' },
-                    { v: 5, label: 'Fri' },
-                    { v: 6, label: 'Sat' },
-                    { v: 0, label: 'Sun' },
-                  ].map(d => (
-                    <button
-                      key={d.v}
-                      type="button"
-                      onClick={() => setWigDayOfWeekState(d.v)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border-2 transition-all ${wigDayOfWeek === d.v
-                        ? 'bg-brand-navy text-white border-brand-navy shadow-lg'
-                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-brand-navy'
-                        }`}
-                    >
-                      {d.label}
-                    </button>
-                  ))}
-                </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Target value</label>
+                <input type="number" step="0.01" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none ui-metric" value={wigTarget} onChange={(e) => setWigTarget(Number(e.target.value))} />
               </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Current value</label>
+                <input type="number" step="0.01" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none ui-metric" value={wigCurrent} onChange={(e) => setWigCurrent(Number(e.target.value))} />
+              </div>
+            </div>
 
-              <div className="mt-12">
-                <div className="flex justify-between items-center mb-6">
-                  <h4 className="text-sm font-black text-brand-navy uppercase tracking-widest font-display">Weekly Lead Measures</h4>
-                  <button onClick={() => setLeadMeasures([...leadMeasures, { id: `lead-${Date.now()}`, name: 'New Measure', target: 1, unit: 'Actions' }])} className="text-[10px] font-black text-white bg-brand-navy px-4 py-2 rounded-xl uppercase tracking-widest hover:bg-black transition-colors shadow-sm">
-                    + Add Measure
+            <div className="mt-4 p-3 rounded-xl border border-slate-100 bg-slate-50">
+              <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">WIG meeting day</label>
+              <p className="text-xs text-slate-500 mb-2">Each "WIG week" runs from this day to the day before. Commitments and scoring align to this cycle.</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { v: 1, label: 'Mon' },
+                  { v: 2, label: 'Tue' },
+                  { v: 3, label: 'Wed' },
+                  { v: 4, label: 'Thu' },
+                  { v: 5, label: 'Fri' },
+                  { v: 6, label: 'Sat' },
+                  { v: 0, label: 'Sun' },
+                ].map(d => (
+                  <button
+                    key={d.v}
+                    type="button"
+                    onClick={() => setWigDayOfWeekState(d.v)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${wigDayOfWeek === d.v
+                      ? 'bg-brand-navy text-white border-brand-navy'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-brand-navy'
+                      }`}
+                  >
+                    {d.label}
                   </button>
-                </div>
-                <div className="space-y-4">
-                  {leadMeasures.map((measure, index) => (
-                    <div key={measure.id} className="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col gap-4 shadow-sm">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-1">
-                          <label className="block text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Name</label>
-                          <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs outline-none" value={measure.name} onChange={(e) => { const next = [...leadMeasures]; next[index].name = e.target.value; setLeadMeasures(next); }} />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Target</label>
-                          <input type="number" className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs outline-none" value={measure.target} onChange={(e) => { const next = [...leadMeasures]; next[index].target = Number(e.target.value); setLeadMeasures(next); }} />
-                        </div>
-                        <div className="flex items-end gap-2">
-                          <div className="flex-grow">
-                            <label className="block text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Unit</label>
-                            <input className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-xs outline-none" value={measure.unit} onChange={(e) => { const next = [...leadMeasures]; next[index].unit = e.target.value; setLeadMeasures(next); }} />
-                          </div>
-                          <button onClick={() => setLeadMeasures(leadMeasures.filter((_, i) => i !== index))} className="p-3 text-slate-300 hover:text-brand-red transition-colors bg-slate-50 rounded-xl">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
+            </div>
 
-              <div className="mt-12 text-right pt-8 border-t border-slate-200">
-                <button onClick={handleSaveWIG} className="bg-brand-navy text-white px-10 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-xl font-display">
-                  Store WIG Configuration
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-semibold text-slate-900">Weekly lead measures</h4>
+                <button onClick={() => setLeadMeasures([...leadMeasures, { id: `lead-${Date.now()}`, name: 'New Measure', target: 1, unit: 'Actions' }])} className="text-sm font-semibold text-white bg-brand-navy px-3 py-2 rounded-lg hover:opacity-90 transition-all">
+                  + Add measure
                 </button>
               </div>
+              <div className="space-y-2">
+                {leadMeasures.map((measure, index) => (
+                  <div key={measure.id} className="bg-white p-3 rounded-xl border border-slate-200 flex flex-col gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="md:col-span-1">
+                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Name</label>
+                        <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" value={measure.name} onChange={(e) => { const next = [...leadMeasures]; next[index].name = e.target.value; setLeadMeasures(next); }} />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Target</label>
+                        <input type="number" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none ui-metric" value={measure.target} onChange={(e) => { const next = [...leadMeasures]; next[index].target = Number(e.target.value); setLeadMeasures(next); }} />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <div className="flex-grow">
+                          <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Unit</label>
+                          <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" value={measure.unit} onChange={(e) => { const next = [...leadMeasures]; next[index].unit = e.target.value; setLeadMeasures(next); }} />
+                        </div>
+                        <button onClick={() => setLeadMeasures(leadMeasures.filter((_, i) => i !== index))} className="p-2 text-slate-400 hover:text-brand-red transition-colors hover:bg-slate-100 rounded-lg">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 text-right pt-3 border-t border-slate-100">
+              <button onClick={handleSaveWIG} className="bg-brand-navy text-white px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-all">
+                Store WIG configuration
+              </button>
             </div>
           </div>
         )}
@@ -453,67 +451,67 @@ interface TeamManagementProps {
 
 
       {/* Strategy Library Section */}
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div
-          className="p-8 flex justify-between items-center cursor-pointer group hover:bg-slate-50 transition-colors"
+          className="px-4 py-3 flex justify-between items-center cursor-pointer group hover:bg-slate-50 transition-colors"
           onClick={() => toggleSection('library')}
         >
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase font-display">Strategy Library</h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">High-leverage action templates</p>
+            <h2 className="text-base font-semibold text-slate-900">Strategy library</h2>
+            <p className="text-xs text-slate-500 mt-0.5">High-leverage action templates</p>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-lg text-[8px] font-black text-slate-400 uppercase tracking-widest">
-              {templates.length} Templates Active
-            </div>
-            <div className="text-slate-300 group-hover:text-brand-navy transition-colors">
+          <div className="flex items-center gap-4">
+            <span className="hidden sm:inline-flex ui-chip bg-slate-100 text-slate-500 ui-metric">
+              {templates.length} templates active
+            </span>
+            <div className="text-slate-400 group-hover:text-brand-navy transition-colors">
               <Chevron isOpen={expanded.library} />
             </div>
           </div>
         </div>
 
         {expanded.library && (
-          <div className="p-8 pt-0 animate-fade-in">
-            <div className="flex justify-end gap-4 mb-8">
+          <div className="px-4 pb-4 animate-fade-in">
+            <div className="flex justify-end gap-2 mb-4">
               <button
                 onClick={handleGenerateAIDrafts}
                 disabled={isGeneratingDrafts}
-                className="bg-brand-navy/5 text-brand-navy px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-brand-navy hover:text-white transition-all border border-brand-navy/10 flex items-center gap-2 disabled:opacity-50"
+                className="text-slate-600 hover:bg-slate-100 border border-slate-200 px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-40"
               >
-                {isGeneratingDrafts ? 'Designing...' : '🤖 AI Architect'}
+                {isGeneratingDrafts ? 'Designing...' : '🤖 AI architect'}
               </button>
               <button
                 onClick={() => { setEditingTemplate({}); setShowTemplateModal(true); }}
-                className="bg-brand-navy text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-lg"
+                className="bg-brand-navy text-white px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-all"
               >
-                + Create Template
+                + Create template
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {templates.map(t => (
-                <div key={t.id} className="p-6 bg-white border border-slate-100 rounded-[2rem] hover:shadow-2xl transition-all group flex flex-col h-full hover:-translate-y-1 shadow-sm">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="h-10 w-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl border border-slate-100">
+                <div key={t.id} className="ui-card hover:shadow-sm transition-shadow group flex flex-col h-full">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="h-9 w-9 bg-slate-50 rounded-lg flex items-center justify-center text-lg border border-slate-100">
                       {t.icon}
                     </div>
-                    <span className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border ${getCategoryColor(t.category)}`}>
+                    <span className={`ui-chip border ${getCategoryColor(t.category)}`}>
                       {getTemplateCategoryLabel(t.category)}
                     </span>
                   </div>
-                  <h3 className="font-black text-slate-900 leading-tight mb-2 uppercase text-sm font-display tracking-tight">{t.title}</h3>
-                  <p className="text-xs text-slate-500 mb-8 flex-grow leading-relaxed">{t.description}</p>
-                  <div className="flex items-center justify-between pt-6 border-t border-slate-50 mt-auto">
+                  <h3 className="text-sm font-semibold text-slate-900 leading-tight mb-1">{t.title}</h3>
+                  <p className="text-xs text-slate-500 mb-3 flex-grow leading-relaxed">{t.description}</p>
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-brand-green"></div>
-                      <span className="text-[9px] font-bold text-slate-400 tracking-widest uppercase">Protocol</span>
+                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Protocol</span>
                     </div>
-                    <div className="flex gap-1.5">
-                      <button onClick={() => { setEditingTemplate(t); setShowTemplateModal(true); }} className="p-2 text-slate-400 hover:text-brand-navy transition-colors bg-slate-100 rounded-lg border border-slate-200">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    <div className="flex gap-1">
+                      <button onClick={() => { setEditingTemplate(t); setShowTemplateModal(true); }} className="p-1.5 text-slate-400 hover:text-brand-navy hover:bg-slate-100 transition-colors rounded-lg">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                       </button>
-                      <button onClick={() => { if (confirm('Delete template?')) StorageService.deleteTemplate(t.id); }} className="p-2 text-slate-400 hover:text-brand-red transition-colors bg-slate-100 rounded-lg border border-slate-200">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      <button onClick={() => { if (confirm('Delete template?')) StorageService.deleteTemplate(t.id); }} className="p-1.5 text-slate-400 hover:text-brand-red hover:bg-slate-100 transition-colors rounded-lg">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
                   </div>
@@ -525,126 +523,124 @@ interface TeamManagementProps {
       </div>
 
       {/* Corporate Branding Section */}
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div
-          className="p-8 flex justify-between items-center cursor-pointer group hover:bg-slate-50 transition-colors"
+          className="px-4 py-3 flex justify-between items-center cursor-pointer group hover:bg-slate-50 transition-colors"
           onClick={() => toggleSection('branding')}
         >
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tighter uppercase font-display">Corporate Branding</h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Interface personalisation & typography</p>
+            <h2 className="text-base font-semibold text-slate-900">Corporate branding</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Interface personalisation & typography</p>
           </div>
-          <div className="flex items-center gap-6">
-            {isBrandingSaved && <span className="text-brand-green font-black uppercase text-[10px] animate-pulse">Brand Updated</span>}
-            <div className="text-slate-300 group-hover:text-brand-navy transition-colors">
+          <div className="flex items-center gap-4">
+            {isBrandingSaved && <span className="text-brand-green font-semibold text-xs animate-pulse">Brand updated</span>}
+            <div className="text-slate-400 group-hover:text-brand-navy transition-colors">
               <Chevron isOpen={expanded.branding} />
             </div>
           </div>
         </div>
 
         {expanded.branding && (
-          <div className="p-8 pt-0 animate-fade-in">
-            <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Visual Palette</h4>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-[8px] font-black uppercase text-slate-500 tracking-widest mb-2 font-display">Primary Action</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="h-10 w-10 rounded-lg cursor-pointer border-0 p-0 overflow-hidden bg-transparent" />
-                        <input type="text" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="flex-grow p-3 bg-white border border-slate-200 rounded-xl text-[10px] font-mono uppercase" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[8px] font-black uppercase text-slate-500 tracking-widest mb-2 font-display">Secondary Accent</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="h-10 w-10 rounded-lg cursor-pointer border-0 p-0 overflow-hidden bg-transparent" />
-                        <input type="text" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="flex-grow p-3 bg-white border border-slate-200 rounded-xl text-[10px] font-mono uppercase" />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-6 mt-4">
-                    <div>
-                      <label className="block text-[8px] font-black uppercase text-slate-500 tracking-widest mb-2 font-display">Success/Score</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={successColor} onChange={e => setSuccessColor(e.target.value)} className="h-10 w-10 rounded-lg cursor-pointer border-0 p-0 overflow-hidden bg-transparent" />
-                        <input type="text" value={successColor} onChange={e => setSuccessColor(e.target.value)} className="flex-grow p-3 bg-white border border-slate-200 rounded-xl text-[10px] font-mono uppercase" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[8px] font-black uppercase text-slate-500 tracking-widest mb-2 font-display">Warning/Lag</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={warningColor} onChange={e => setWarningColor(e.target.value)} className="h-10 w-10 rounded-lg cursor-pointer border-0 p-0 overflow-hidden bg-transparent" />
-                        <input type="text" value={warningColor} onChange={e => setWarningColor(e.target.value)} className="flex-grow p-3 bg-white border border-slate-200 rounded-xl text-[10px] font-mono uppercase" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Google Typography & Logo</h4>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-[8px] font-black uppercase text-slate-500 tracking-widest mb-2 font-display">Title Font</label>
-                      <input type="text" value={titleFont} onChange={e => setTitleFont(e.target.value)} placeholder="e.g. Poppins" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold font-display" />
-                    </div>
-                    <div>
-                      <label className="block text-[8px] font-black uppercase text-slate-500 tracking-widest mb-2 font-display">Body Font</label>
-                      <input type="text" value={bodyFont} onChange={e => setBodyFont(e.target.value)} placeholder="e.g. Roboto" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-medium" />
+          <div className="px-4 pb-4 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Visual palette</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Primary action</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="h-9 w-9 rounded-lg cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0" />
+                      <input type="text" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="flex-grow min-w-0 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono uppercase bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[8px] font-black uppercase text-slate-500 tracking-widest mb-2 font-display">Logo URL (Transparent PNG recommended)</label>
-                    <input type="text" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-[10px] font-medium" />
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Secondary accent</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="h-9 w-9 rounded-lg cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0" />
+                      <input type="text" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="flex-grow min-w-0 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono uppercase bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
+                    </div>
                   </div>
-                  <p className="text-[8px] text-slate-400 italic font-bold">The system will auto-import the best weights for your choices.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Success/score</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={successColor} onChange={e => setSuccessColor(e.target.value)} className="h-9 w-9 rounded-lg cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0" />
+                      <input type="text" value={successColor} onChange={e => setSuccessColor(e.target.value)} className="flex-grow min-w-0 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono uppercase bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Warning/lag</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={warningColor} onChange={e => setWarningColor(e.target.value)} className="h-9 w-9 rounded-lg cursor-pointer border-0 p-0 overflow-hidden bg-transparent shrink-0" />
+                      <input type="text" value={warningColor} onChange={e => setWarningColor(e.target.value)} className="flex-grow min-w-0 border border-slate-200 rounded-lg px-3 py-2 text-xs font-mono uppercase bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="mt-10 flex justify-between items-center pt-8 border-t border-slate-200">
-                <button onClick={handleRestoreBranding} className="text-[10px] font-black text-slate-600 uppercase tracking-widest hover:text-brand-red transition-colors bg-white px-6 py-2 rounded-xl border border-slate-200 shadow-sm">Restore Original Defaults</button>
-                <button onClick={handleSaveBranding} className="bg-brand-navy text-white px-10 py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-lg font-display">
-                  Apply & Push Branding
-                </button>
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Google typography & logo</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Title font</label>
+                    <input type="text" value={titleFont} onChange={e => setTitleFont(e.target.value)} placeholder="e.g. Poppins" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Body font</label>
+                    <input type="text" value={bodyFont} onChange={e => setBodyFont(e.target.value)} placeholder="e.g. Roboto" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Logo URL (transparent PNG recommended)</label>
+                  <input type="text" value={logoUrl} onChange={e => setLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
+                </div>
+                <p className="text-xs text-slate-400">The system will auto-import the best weights for your choices.</p>
               </div>
+            </div>
+
+            <div className="mt-4 flex justify-between items-center pt-3 border-t border-slate-100">
+              <button onClick={handleRestoreBranding} className="text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors px-4 py-2 rounded-lg border border-slate-200">Restore original defaults</button>
+              <button onClick={handleSaveBranding} className="bg-brand-navy text-white px-4 py-2 rounded-lg font-semibold text-sm hover:opacity-90 transition-all">
+                Apply & push branding
+              </button>
             </div>
           </div>
         )}
       </div>
 
       {showTemplateModal && editingTemplate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-navy/90 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl p-10 max-h-[90vh] overflow-y-auto border-4 border-white">
-            <h3 className="text-2xl font-black text-brand-navy uppercase tracking-tighter mb-8 font-display">{editingTemplate.id ? 'Refine Template' : 'Architect New Move'}</h3>
-            <div className="space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-xl border border-slate-200 w-full max-w-lg shadow-xl p-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-base font-semibold text-slate-900 mb-4">{editingTemplate.id ? 'Refine template' : 'Architect new move'}</h3>
+            <div className="space-y-3">
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">Draft Title</label>
-                <input value={editingTemplate.title || ''} onChange={e => setEditingTemplate({ ...editingTemplate, title: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-[1.25rem] text-sm font-bold focus:border-brand-navy outline-none" />
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Draft title</label>
+                <input value={editingTemplate.title || ''} onChange={e => setEditingTemplate({ ...editingTemplate, title: e.target.value })} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">Action Description</label>
-                <textarea value={editingTemplate.description || ''} onChange={e => setEditingTemplate({ ...editingTemplate, description: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-[1.25rem] text-sm font-medium focus:border-brand-navy outline-none h-32 resize-none" />
+                <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Action description</label>
+                <textarea value={editingTemplate.description || ''} onChange={e => setEditingTemplate({ ...editingTemplate, description: e.target.value })} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none h-28 resize-none" />
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">Category</label>
-                  <select value={editingTemplate.category || 'other'} onChange={e => setEditingTemplate({ ...editingTemplate, category: e.target.value as any })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-[1.25rem] text-xs font-black focus:border-brand-navy outline-none">
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Category</label>
+                  <select value={editingTemplate.category || 'other'} onChange={e => setEditingTemplate({ ...editingTemplate, category: e.target.value as any })} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none">
                     {['floor_walk', 'preventive_maintenance', 'documentation', 'training', 'infrastructure', 'other'].map(c => (
                       <option key={c} value={c}>{getTemplateCategoryLabel(c)}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 font-display">Icon</label>
-                  <input value={editingTemplate.icon || ''} onChange={e => setEditingTemplate({ ...editingTemplate, icon: e.target.value })} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-[1.25rem] text-sm font-bold focus:border-brand-navy outline-none" />
+                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Icon</label>
+                  <input value={editingTemplate.icon || ''} onChange={e => setEditingTemplate({ ...editingTemplate, icon: e.target.value })} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 focus:bg-white focus:border-brand-navy outline-none" />
                 </div>
               </div>
             </div>
-            <div className="mt-10 flex gap-4">
-              <button onClick={() => setShowTemplateModal(false)} className="flex-1 py-4 rounded-[1.25rem] text-[10px] font-black uppercase text-slate-400 bg-slate-100 hover:bg-slate-200 transition-colors tracking-widest">Cancel</button>
-              <button onClick={() => { if (editingTemplate.id) { StorageService.updateTemplate(editingTemplate.id, editingTemplate); } else { StorageService.addTemplate(editingTemplate as any); } setShowTemplateModal(false); }} className="flex-[2] py-4 rounded-[1.25rem] text-[10px] font-black uppercase text-white bg-brand-navy hover:bg-black transition-colors tracking-widest shadow-xl">
-                {editingTemplate.id ? 'Update Strategy' : 'Author Move'}
+            <div className="mt-4 flex gap-2">
+              <button onClick={() => setShowTemplateModal(false)} className="flex-1 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+              <button onClick={() => { if (editingTemplate.id) { StorageService.updateTemplate(editingTemplate.id, editingTemplate); } else { StorageService.addTemplate(editingTemplate as any); } setShowTemplateModal(false); }} className="flex-[2] py-2 rounded-lg text-sm font-semibold text-white bg-brand-navy hover:opacity-90 transition-all">
+                {editingTemplate.id ? 'Update strategy' : 'Author move'}
               </button>
             </div>
           </div>

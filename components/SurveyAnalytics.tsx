@@ -145,52 +145,52 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
 
 
     if (!metrics) return (
-        <div className="flex flex-col items-center justify-center p-10 bg-slate-50 text-slate-400 rounded-3xl border border-dashed border-slate-200">
-            <div className="flex justify-between items-center w-full mb-6">
+        <div className="flex flex-col items-center justify-center p-4 bg-slate-50 text-slate-400 rounded-xl border border-dashed border-slate-200">
+            <div className="flex justify-between items-center w-full mb-4">
                 <div></div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Start Date:</label>
+                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Start date</label>
                         <input
                             type="date"
                             value={localDate}
                             onChange={(e) => setLocalDate(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/5 transition-all"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-brand-navy transition-colors"
                         />
                     </div>
                     <button
                         onClick={handleSaveDate}
-                        className="bg-brand-navy text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg hover:bg-slate-800 transition-all shadow-md hover:shadow-lg"
+                        className="bg-brand-navy text-white rounded-lg px-3 py-2 text-sm font-semibold hover:opacity-90 transition-all"
                     >
-                        Apply Filter
+                        Apply filter
                     </button>
                     {startDate && (
                         <button
                             onClick={() => { setLocalDate(''); onDateChange(0); }}
-                            className="text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-brand-red transition-colors"
+                            className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                         >
                             Reset
                         </button>
                     )}
                 </div>
             </div>
-            <p className="font-black uppercase tracking-widest text-xs">No Data Available for this period</p>
-            <p className="text-[10px] mt-2">Try adjusting the date filter or upload TSV files</p>
+            <p className="text-sm font-semibold text-slate-500">No data available for this period</p>
+            <p className="text-xs mt-1">Try adjusting the date filter or upload TSV files</p>
         </div>
     );
 
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-3 animate-fade-in">
 
-            <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm mb-6">
+            <div className="ui-card flex flex-wrap justify-between items-center gap-3">
                 <div>
-                    <h2 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Satisfaction Analytics</h2>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Helpdesk Survey Insights</p>
+                    <h2 className="text-base font-semibold text-slate-900">Satisfaction analytics</h2>
+                    <p className="text-xs text-slate-500">Helpdesk survey insights</p>
                     {lastUploadInfo && (
-                        <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                            lastUploadInfo.freshness === 'fresh' ? 'bg-green-50 text-green-600' :
-                            lastUploadInfo.freshness === 'stale' ? 'bg-amber-50 text-amber-600' :
-                            'bg-red-50 text-red-500'
+                        <div className={`mt-1.5 ui-chip ${
+                            lastUploadInfo.freshness === 'fresh' ? 'bg-green-50 text-green-700' :
+                            lastUploadInfo.freshness === 'stale' ? 'bg-amber-50 text-amber-700' :
+                            'bg-red-50 text-red-600'
                         }`}>
                             <span className={`w-2 h-2 rounded-full ${
                                 lastUploadInfo.freshness === 'fresh' ? 'bg-green-400 animate-pulse' :
@@ -198,32 +198,32 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
                                 'bg-red-400'
                             }`}></span>
                             Last upload: {lastUploadInfo.freshnessLabel}
-                            <span className="text-slate-300 mx-1">•</span>
-                            <span className="font-medium normal-case tracking-normal">{new Date(lastUploadInfo.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="font-medium ui-metric">{new Date(lastUploadInfo.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Start Date:</label>
+                        <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Start date</label>
                         <input
                             type="date"
                             value={localDate}
                             onChange={(e) => setLocalDate(e.target.value)}
-                            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/5 transition-all"
+                            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 outline-none focus:border-brand-navy transition-colors"
                         />
                     </div>
                     <button
                         onClick={handleSaveDate}
                         disabled={localDate === (startDate ? new Date(startDate).toISOString().split('T')[0] : '')}
-                        className="bg-brand-navy text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+                        className="bg-brand-navy text-white rounded-lg px-3 py-2 text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                        Save Timeframe
+                        Save timeframe
                     </button>
                     {startDate && (
                         <button
                             onClick={() => { setLocalDate(''); onDateChange(0); }}
-                            className="text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-brand-red transition-colors"
+                            className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
                         >
                             Reset
                         </button>
@@ -232,73 +232,61 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-brand-navy text-white p-6 rounded-2xl shadow-lg relative overflow-hidden group">
-                    <div className="absolute -right-4 -top-4 opacity-10 transform rotate-12 group-hover:scale-110 transition-transform">
-                        <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="ui-card !p-3">
+                    <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Overall satisfaction</h4>
+                    <div className="ui-metric text-lg font-extrabold text-slate-900 my-0.5">
+                        {metrics.avg} <span className="text-xs font-medium text-slate-400">/ 10</span>
                     </div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Overall Satisfaction</h4>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-4xl font-black tracking-tighter">{metrics.avg}</span>
-                        <span className="text-sm font-bold opacity-80">/ 10</span>
-                    </div>
-                    <div className="mt-4 text-xs font-black bg-white/10 inline-block px-2 py-1 rounded">{metrics.percent}%</div>
+                    <div className="ui-bar"><i style={{ width: `${metrics.percent}%`, backgroundColor: 'var(--secondary-color)' }} /></div>
+                    <div className="text-[10px] font-semibold text-slate-500 mt-1.5 ui-metric">{metrics.percent}% · {metrics.count} surveys</div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resolution (Q1)</h4>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-3xl font-black text-slate-800">{metrics.q1Avg}</span>
-                        <span className="text-[10px] font-bold text-slate-300">/ 10</span>
+                <div className="ui-card !p-3">
+                    <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Resolution (Q1)</h4>
+                    <div className="ui-metric text-lg font-extrabold text-slate-900 my-0.5">
+                        {metrics.q1Avg} <span className="text-xs font-medium text-slate-400">/ 10</span>
                     </div>
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                        <div className="bg-brand-green h-full rounded-full" style={{ width: `${Number(metrics.q1Avg) * 10}%` }}></div>
-                    </div>
+                    <div className="ui-bar"><i style={{ width: `${Number(metrics.q1Avg) * 10}%`, backgroundColor: 'var(--secondary-color)' }} /></div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Professionalism (Q2)</h4>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-3xl font-black text-slate-800">{metrics.q2Avg}</span>
-                        <span className="text-[10px] font-bold text-slate-300">/ 10</span>
+                <div className="ui-card !p-3">
+                    <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Professionalism (Q2)</h4>
+                    <div className="ui-metric text-lg font-extrabold text-slate-900 my-0.5">
+                        {metrics.q2Avg} <span className="text-xs font-medium text-slate-400">/ 10</span>
                     </div>
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                        <div className="bg-brand-navy h-full rounded-full" style={{ width: `${Number(metrics.q2Avg) * 10}%` }}></div>
-                    </div>
+                    <div className="ui-bar"><i style={{ width: `${Number(metrics.q2Avg) * 10}%`, backgroundColor: 'var(--secondary-color)' }} /></div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Speed (Q3)</h4>
-                    <div className="mt-2 flex items-baseline gap-2">
-                        <span className="text-3xl font-black text-slate-800">{metrics.q3Avg}</span>
-                        <span className="text-[10px] font-bold text-slate-300">/ 10</span>
+                <div className="ui-card !p-3">
+                    <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Speed (Q3)</h4>
+                    <div className="ui-metric text-lg font-extrabold text-slate-900 my-0.5">
+                        {metrics.q3Avg} <span className="text-xs font-medium text-slate-400">/ 10</span>
                     </div>
-                    <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
-                        <div className="bg-brand-orange h-full rounded-full" style={{ width: `${Number(metrics.q3Avg) * 10}%` }}></div>
-                    </div>
+                    <div className="ui-bar"><i style={{ width: `${Number(metrics.q3Avg) * 10}%`, backgroundColor: 'var(--secondary-color)' }} /></div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
                 {/* Trend Chart (CSS-only simple chart) */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-black text-brand-navy uppercase tracking-tight mb-6">Satisfaction Trend (Last 12 Weeks)</h3>
+                <div className="lg:col-span-2 ui-card">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Satisfaction trend (last 12 weeks)</h3>
                     <div className="relative h-56">
                         {/* Bar area */}
                         <div className="absolute inset-x-0 top-0 bottom-8 flex gap-1">
                             {weeklyTrend.map((week, idx) => (
                                 <div key={week.weekId} className="flex-1 h-full relative group">
                                     {/* Tooltip */}
-                                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg whitespace-nowrap z-10">
+                                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] font-semibold px-2 py-1 rounded-md shadow-sm whitespace-nowrap z-10 ui-metric">
                                         {week.weekId}: {week.avg.toFixed(2)}
                                     </div>
                                     {/* Bar anchored to bottom */}
                                     <div
-                                        className="absolute bottom-0 inset-x-0 bg-brand-red/10 rounded-t-sm transition-all group-hover:bg-brand-red/20"
+                                        className="absolute bottom-0 inset-x-0 bg-brand-navy/10 rounded-t-sm transition-all group-hover:bg-brand-navy/20"
                                         style={{ height: `${(week.avg / 10) * 100}%` }}
                                     >
-                                        <div className="absolute top-0 w-full bg-brand-red h-1 rounded-t-sm"></div>
+                                        <div className="absolute top-0 w-full bg-brand-navy h-1 rounded-t-sm"></div>
                                     </div>
                                 </div>
                             ))}
@@ -307,7 +295,7 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
                         <div className="absolute inset-x-0 bottom-0 h-8 flex gap-1">
                             {weeklyTrend.map((week) => (
                                 <div key={week.weekId} className="flex-1 flex items-start justify-center pt-1">
-                                    <span className="text-[8px] font-bold text-slate-300 rotate-45 origin-left translate-x-1">{week.weekId.substring(5)}</span>
+                                    <span className="text-[8px] font-medium text-slate-400 rotate-45 origin-left translate-x-1 ui-metric">{week.weekId.substring(5)}</span>
                                 </div>
                             ))}
                         </div>
@@ -315,36 +303,36 @@ const SurveyAnalytics: React.FC<SurveyAnalyticsProps> = ({ surveys, startDate, o
                 </div>
 
                 {/* Tech League Table */}
-                <div className="bg-white p-0 rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                    <div className="p-6 border-b border-slate-50">
-                        <h3 className="text-lg font-black text-brand-navy uppercase tracking-tight">Tech Performance</h3>
+                <div className="ui-card !p-0 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100">
+                        <h3 className="text-sm font-semibold text-slate-900">Tech performance</h3>
                     </div>
                     <div className="overflow-y-auto max-h-[400px]">
                         <table className="w-full text-left">
-                            <thead className="sticky top-0 bg-white z-10 shadow-sm">
-                                <tr className="text-[8px] font-black uppercase text-slate-400 tracking-widest">
-                                    <th className="px-6 py-3">Tech</th>
-                                    <th className="px-6 py-3 text-right">Surveys</th>
-                                    <th className="px-6 py-3 text-right">Avg Rating</th>
+                            <thead className="sticky top-0 bg-white z-10 border-b border-slate-100">
+                                <tr className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
+                                    <th className="px-4 py-2">Tech</th>
+                                    <th className="px-4 py-2 text-right">Surveys</th>
+                                    <th className="px-4 py-2 text-right">Avg rating</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-50">
+                            <tbody className="divide-y divide-slate-100">
                                 {techPerformance.map((tech, idx) => (
                                     <tr key={tech.name} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4">
+                                        <td className="px-4 py-2.5">
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${idx === 0 ? 'bg-yellow-100 text-yellow-600' :
+                                                <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold ui-metric ${idx === 0 ? 'bg-yellow-100 text-yellow-700' :
                                                     idx === 1 ? 'bg-slate-100 text-slate-600' :
-                                                        idx === 2 ? 'bg-orange-50 text-orange-600' : 'bg-slate-50 text-slate-300'
+                                                        idx === 2 ? 'bg-orange-50 text-orange-600' : 'bg-slate-50 text-slate-400'
                                                     }`}>
                                                     {idx + 1}
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-700">{tech.name}</span>
+                                                <span className="text-xs font-medium text-slate-700">{tech.name}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-right text-xs text-slate-500 font-mono">{tech.count}</td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className={`text-xs font-black px-2 py-1 rounded ${Number(tech.avg) >= 9 ? 'bg-green-50 text-brand-green' :
+                                        <td className="px-4 py-2.5 text-right text-xs text-slate-500 ui-metric">{tech.count}</td>
+                                        <td className="px-4 py-2.5 text-right">
+                                            <span className={`ui-chip ui-metric ${Number(tech.avg) >= 9 ? 'bg-green-50 text-brand-green' :
                                                 Number(tech.avg) >= 8 ? 'bg-blue-50 text-brand-navy' :
                                                     'bg-red-50 text-brand-red'
                                                 }`}>

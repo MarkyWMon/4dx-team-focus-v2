@@ -275,19 +275,19 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-3">
       {/* Header + period selector */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-brand-navy uppercase tracking-tight">Commitment Analytics</h2>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Manager view · who is committing to what, and when</p>
+          <h2 className="text-base font-semibold text-slate-900">Commitment analytics</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Manager view · who is committing to what, and when</p>
         </div>
-        <div className="flex gap-1 bg-white rounded-xl border border-slate-100 p-1 shadow-sm">
+        <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1">
           {PERIODS.map(p => (
             <button
               key={p.key}
               onClick={() => setPeriod(p.key)}
-              className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${period === p.key ? 'bg-slate-900 text-white shadow' : 'text-slate-400 hover:text-slate-700'}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${period === p.key ? 'bg-brand-navy text-white' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               {p.label}
             </button>
@@ -296,7 +296,7 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
         <Kpi label="Set" value={String(kpis.totalSet)} />
         <Kpi label="Closed" value={String(kpis.totalClosed)} />
         <Kpi label="Completion" value={`${kpis.completionRate}%`} />
@@ -306,47 +306,47 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
       </div>
 
       {/* Team trends + who-is-setting breakdown */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">Team trend · set vs closed per week</h3>
+      <div className="grid lg:grid-cols-2 gap-3">
+        <div className="ui-card">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-slate-900">Team trend · set vs closed per week</h3>
             <Legend />
           </div>
           <TrendBars data={teamSeries} height="h-44" />
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-4">Who is setting commitments</h3>
+        <div className="ui-card">
+          <h3 className="text-sm font-semibold text-slate-900 mb-3">Who is setting commitments</h3>
           <div className="space-y-3">
             {breakdown.map(b => (
               <div key={b.member.id}>
-                <div className="flex items-center justify-between text-[11px] font-bold mb-1">
-                  <span className="text-slate-700 truncate">{b.member.name}</span>
-                  <span className="text-slate-400">{b.set} set · {b.completed} done · {Math.round(b.share * 100)}%</span>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-slate-700 font-medium truncate">{b.member.name}</span>
+                  <span className="text-slate-500 ui-metric">{b.set} set · {b.completed} done · {Math.round(b.share * 100)}%</span>
                 </div>
-                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden relative">
+                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden relative">
                   <div className="h-full bg-slate-300 rounded-full absolute inset-y-0 left-0" style={{ width: `${b.share * 100}%` }} />
-                  <div className="h-full bg-emerald-500 rounded-full absolute inset-y-0 left-0" style={{ width: `${(b.set ? (b.completed / b.set) : 0) * b.share * 100}%` }} />
+                  <div className="h-full bg-brand-green rounded-full absolute inset-y-0 left-0" style={{ width: `${(b.set ? (b.completed / b.set) : 0) * b.share * 100}%` }} />
                 </div>
               </div>
             ))}
             {breakdown.length === 0 && (
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-widest py-6 text-center">No commitments in this period</p>
+              <p className="text-xs text-slate-400 py-4 text-center">No commitments in this period</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Per-member table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">By team member</h3>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{sortedRows.length} active</span>
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">By team member</h3>
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide ui-metric">{sortedRows.length} active</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
+              <tr className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
                 <Th onClick={() => setSortKey('name')} active={sortKey === 'name'}>Member</Th>
                 <Th onClick={() => setSortKey('set')} active={sortKey === 'set'} right>Set</Th>
                 <Th onClick={() => setSortKey('completed')} active={sortKey === 'completed'} right>Done</Th>
@@ -361,34 +361,34 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
             <tbody>
               {sortedRows.map(r => (
                 <tr key={r.member.id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
-                  <td className="px-6 py-3">
+                  <td className="px-4 py-2.5">
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center font-black text-slate-500 text-[10px] border border-slate-200">
+                      <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center font-semibold text-slate-600 text-[10px] uppercase shrink-0">
                         {r.member.avatar || r.member.name.substring(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-black text-slate-800 text-xs leading-none">{r.member.name}</p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">{r.member.role}</p>
+                        <p className="font-medium text-slate-800 text-sm leading-none">{r.member.name}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">{r.member.role}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right font-black text-slate-800">{r.set}</td>
-                  <td className="px-3 py-3 text-right font-bold text-emerald-600">{r.completed}</td>
-                  <td className="px-3 py-3 text-right font-bold text-amber-500">{r.partial}</td>
-                  <td className="px-3 py-3 text-right font-bold text-slate-400">{r.incomplete}</td>
-                  <td className="px-3 py-3 text-right">
-                    <span className={`font-black ${r.completionRate >= 0.7 ? 'text-emerald-600' : r.completionRate >= 0.4 ? 'text-amber-500' : 'text-red-500'}`}>
+                  <td className="px-3 py-2.5 text-right font-semibold text-slate-800 ui-metric">{r.set}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-brand-green ui-metric">{r.completed}</td>
+                  <td className="px-3 py-2.5 text-right text-amber-600 ui-metric">{r.partial}</td>
+                  <td className="px-3 py-2.5 text-right text-slate-400 ui-metric">{r.incomplete}</td>
+                  <td className="px-3 py-2.5 text-right">
+                    <span className={`font-semibold ui-metric ${r.completionRate >= 0.7 ? 'text-brand-green' : r.completionRate >= 0.4 ? 'text-amber-600' : 'text-brand-red'}`}>
                       {Math.round(r.completionRate * 100)}%
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-right font-bold text-slate-500">{fmtDuration(r.avgTimeToCloseMs)}</td>
-                  <td className="px-3 py-3 text-right">
-                    <span className={`font-black ${r.lastMinuteCount > 0 ? 'text-orange-600' : 'text-slate-300'}`}>{r.lastMinuteCount}</span>
+                  <td className="px-3 py-2.5 text-right text-slate-500 ui-metric">{fmtDuration(r.avgTimeToCloseMs)}</td>
+                  <td className="px-3 py-2.5 text-right">
+                    <span className={`font-semibold ui-metric ${r.lastMinuteCount > 0 ? 'text-orange-600' : 'text-slate-300'}`}>{r.lastMinuteCount}</span>
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-2.5 text-right">
                     <button
                       onClick={() => setSelectedId(r.member.id)}
-                      className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-slate-700"
+                      className="px-3 py-1.5 rounded-lg bg-brand-navy text-white text-xs font-semibold hover:opacity-90 transition-opacity"
                     >
                       Detail
                     </button>
@@ -396,7 +396,7 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
                 </tr>
               ))}
               {sortedRows.length === 0 && (
-                <tr><td colSpan={9} className="px-6 py-12 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No commitments in this period</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400 text-xs">No commitments in this period</td></tr>
               )}
             </tbody>
           </table>
@@ -404,11 +404,11 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
       </div>
 
       {/* AI theme summary */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="ui-card">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500">What kinds of work is the team choosing?</h3>
-            <p className="text-[10px] font-bold text-slate-400 mt-1">
+            <h3 className="text-sm font-semibold text-slate-900">What kinds of work is the team choosing?</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
               AI-summarised themes {themesAt ? `· generated ${fmtDateTime(themesAt)}` : ''}
             </p>
           </div>
@@ -416,7 +416,7 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
             <button
               onClick={() => loadThemes(false)}
               disabled={themesLoading}
-              className="px-3 py-2 rounded-lg bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-2 rounded-lg bg-brand-navy text-white text-xs font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {themesLoading ? 'Working…' : themes ? 'Reload' : 'Generate'}
             </button>
@@ -424,7 +424,7 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
               <button
                 onClick={() => loadThemes(true)}
                 disabled={themesLoading}
-                className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-[9px] font-black uppercase tracking-widest hover:bg-slate-50 disabled:opacity-50"
+                className="px-3 py-2 rounded-lg text-slate-600 text-xs font-semibold hover:bg-slate-100 disabled:opacity-50 transition-colors"
               >
                 Refresh AI
               </button>
@@ -432,21 +432,21 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
           </div>
         </div>
 
-        {themesError && <p className="text-xs text-amber-600 font-bold">{themesError}</p>}
+        {themesError && <p className="text-xs text-amber-700">{themesError}</p>}
         {!themes && !themesError && !themesLoading && (
-          <p className="text-xs text-slate-400 font-bold">Generate an AI summary of the categories of work each member is committing to.</p>
+          <p className="text-xs text-slate-400">Generate an AI summary of the categories of work each member is committing to.</p>
         )}
 
         {themes && (
-          <div className="space-y-5">
-            <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-xl p-4 border border-slate-100">{themes.overall}</p>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-lg p-3 border border-slate-100">{themes.overall}</p>
             <div className="grid sm:grid-cols-2 gap-3">
               {themes.perMember.map((m, i) => (
-                <div key={i} className="border border-slate-100 rounded-xl p-4">
-                  <p className="font-black text-slate-800 text-xs uppercase tracking-tight">{m.memberName}</p>
+                <div key={i} className="border border-slate-100 rounded-lg p-3">
+                  <p className="text-sm font-semibold text-slate-900">{m.memberName}</p>
                   <div className="flex flex-wrap gap-1.5 my-2">
                     {m.themes.map((t, j) => (
-                      <span key={j} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[9px] font-black uppercase tracking-widest border border-indigo-100">{t}</span>
+                      <span key={j} className="ui-chip bg-slate-100 text-slate-600">{t}</span>
                     ))}
                   </div>
                   <p className="text-xs text-slate-500 leading-relaxed">{m.summary}</p>
@@ -459,51 +459,51 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
 
       {/* Drill-in modal */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/40 backdrop-blur-sm p-4 sm:p-8 overflow-y-auto" onClick={() => setSelectedId(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-8" onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 backdrop-blur-sm p-4 sm:p-8 overflow-y-auto" onClick={() => setSelectedId(null)}>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-3xl my-8" onClick={e => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white rounded-t-xl">
               <div>
-                <h3 className="text-lg font-black text-slate-900 tracking-tight">{selected.member.name}</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                <h3 className="text-base font-semibold text-slate-900">{selected.member.name}</h3>
+                <p className="text-xs text-slate-500 mt-0.5 ui-metric">
                   {selected.set} set · {selected.completed} done · {Math.round(selected.completionRate * 100)}% · {selected.lastMinuteCount} last-minute
                 </p>
               </div>
-              <button onClick={() => setSelectedId(null)} className="p-2 text-slate-400 hover:text-slate-900">
+              <button onClick={() => setSelectedId(null)} className="p-2 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <div className="p-6 space-y-3">
+            <div className="p-4 space-y-3">
               {/* Per-member trend over time */}
-              <div className="border border-slate-100 rounded-xl p-4 mb-2">
+              <div className="border border-slate-100 rounded-lg p-3 mb-2">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Trend · set vs closed per week</h4>
+                  <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Trend · set vs closed per week</h4>
                   <Legend />
                 </div>
                 <TrendBars data={memberSeries(selected.member.id)} height="h-32" />
               </div>
-              <p className="text-[10px] font-bold text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 Flags are signals for a conversation, not verdicts. Older commitments created before timing was tracked show “—” for close time.
               </p>
               {selected.commitments.map(c => (
-                <div key={c.id} className="border border-slate-100 rounded-xl p-4">
+                <div key={c.id} className="border border-slate-100 rounded-lg p-3">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-bold text-slate-800 flex-grow">{c.description}</p>
-                    <span className={`shrink-0 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${
+                    <p className="text-sm font-medium text-slate-800 flex-grow">{c.description}</p>
+                    <span className={`shrink-0 ui-chip border ${
                       c.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                       c.status === 'partial' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                       'bg-slate-50 text-slate-500 border-slate-200'}`}>{c.status}</span>
                   </div>
-                  <div className="flex flex-wrap gap-4 mt-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    <span>Set: <span className="text-slate-600">{fmtDateTime(c.createdAt)}</span></span>
-                    <span>Closed: <span className="text-slate-600">{fmtDateTime(c.completedAt)}</span></span>
-                    <span>Open for: <span className="text-slate-600">{fmtDuration(c.timeToCloseMs)}</span></span>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                    <span>Set: <span className="text-slate-600 ui-metric">{fmtDateTime(c.createdAt)}</span></span>
+                    <span>Closed: <span className="text-slate-600 ui-metric">{fmtDateTime(c.completedAt)}</span></span>
+                    <span>Open for: <span className="text-slate-600 ui-metric">{fmtDuration(c.timeToCloseMs)}</span></span>
                     {c.leadMeasureName && <span>LM: <span className="text-slate-600">{c.leadMeasureName}</span></span>}
-                    <span>{formatWeekDisplay(c.weekId)}</span>
+                    <span className="ui-metric">{formatWeekDisplay(c.weekId)}</span>
                   </div>
                   {c.flags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
+                    <div className="flex flex-wrap gap-1.5 mt-2">
                       {c.flags.map(f => (
-                        <span key={f} className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border ${FLAG_META[f].cls}`}>
+                        <span key={f} className={`ui-chip border ${FLAG_META[f].cls}`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${FLAG_META[f].dot}`} />{FLAG_META[f].label}
                         </span>
                       ))}
@@ -521,8 +521,8 @@ const CommitmentAnalytics: React.FC<Props> = ({ members, commitments, wigConfig 
 
 const Legend: React.FC = () => (
   <div className="flex items-center gap-3">
-    <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400"><span className="h-2 w-2 rounded-sm bg-slate-300" />Set</span>
-    <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400"><span className="h-2 w-2 rounded-sm bg-emerald-500" />Closed</span>
+    <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"><span className="h-2 w-2 rounded-sm bg-slate-300" />Set</span>
+    <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500"><span className="h-2 w-2 rounded-sm bg-brand-green" />Closed</span>
   </div>
 );
 
@@ -534,20 +534,20 @@ const TrendBars: React.FC<{ data: { weekId: string; set: number; completed: numb
       <div className={`${height} w-full flex items-end justify-between gap-1`}>
         {data.map((d, i) => (
           <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-            <div className="absolute -top-11 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none shadow-xl whitespace-nowrap">
-              <div className="text-[10px] font-bold">{formatWeekDisplay(d.weekId)}</div>
-              <div className="text-[9px] flex gap-2 mt-0.5"><span className="text-slate-300">Set {d.set}</span><span className="text-emerald-300">Closed {d.completed}</span></div>
+            <div className="absolute -top-11 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none shadow-sm whitespace-nowrap">
+              <div className="text-[10px] font-semibold">{formatWeekDisplay(d.weekId)}</div>
+              <div className="text-[9px] flex gap-2 mt-0.5 ui-metric"><span className="text-slate-300">Set {d.set}</span><span className="text-emerald-300">Closed {d.completed}</span></div>
             </div>
             <div className="w-full flex items-end justify-center gap-0.5 h-full">
               <div className="w-2.5 bg-slate-300 rounded-t-sm transition-all group-hover:bg-slate-400" style={{ height: `${(d.set / max) * 100}%` }} />
-              <div className="w-2.5 bg-emerald-500 rounded-t-sm transition-all" style={{ height: `${(d.completed / max) * 100}%` }} />
+              <div className="w-2.5 bg-brand-green rounded-t-sm transition-all" style={{ height: `${(d.completed / max) * 100}%` }} />
             </div>
           </div>
         ))}
       </div>
       <div className="flex justify-between mt-1.5 gap-1">
         {data.map((d, i) => (
-          <span key={i} className="flex-1 text-center text-[8px] font-black text-slate-300 uppercase tracking-widest">W{d.weekId.split('-W')[1]}</span>
+          <span key={i} className="flex-1 text-center text-[9px] font-medium text-slate-400 ui-metric">W{d.weekId.split('-W')[1]}</span>
         ))}
       </div>
     </div>
@@ -555,16 +555,16 @@ const TrendBars: React.FC<{ data: { weekId: string; set: number; completed: numb
 };
 
 const Kpi: React.FC<{ label: string; value: string; accent?: boolean }> = ({ label, value, accent }) => (
-  <div className={`rounded-2xl border p-4 ${accent ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-100'} shadow-sm`}>
-    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-    <p className={`text-2xl font-black tracking-tighter mt-1 ${accent ? 'text-orange-600' : 'text-slate-900'}`}>{value}</p>
+  <div className={`rounded-xl border p-3 ${accent ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
+    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
+    <p className={`text-xl font-extrabold ui-metric mt-0.5 ${accent ? 'text-orange-600' : 'text-slate-900'}`}>{value}</p>
   </div>
 );
 
 const Th: React.FC<{ children?: React.ReactNode; onClick?: () => void; active?: boolean; right?: boolean }> = ({ children, onClick, active, right }) => (
   <th
     onClick={onClick}
-    className={`px-3 py-3 ${right ? 'text-right' : 'text-left'} ${onClick ? 'cursor-pointer hover:text-slate-700' : ''} ${active ? 'text-slate-900' : ''} ${!right ? 'pl-6' : ''}`}
+    className={`px-3 py-2.5 ${right ? 'text-right' : 'text-left'} ${onClick ? 'cursor-pointer hover:text-slate-700' : ''} ${active ? 'text-slate-900' : ''} ${!right ? 'pl-4' : ''}`}
   >
     {children}{active ? ' ↓' : ''}
   </th>
