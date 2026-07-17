@@ -415,7 +415,28 @@ const WIGSessionView: React.FC<WIGSessionProps> = ({ currentUser, members, curre
                             )}
 
                             {(currentStepId === 3 || currentStepId === 5) && (
-                                <div>
+                                <div className="space-y-3">
+                                    {currentStepId === 5 && (() => {
+                                        // Write-off reasons from last week's rollover feed straight
+                                        // into Clear the Path — these ARE the obstacles.
+                                        const writeOffs = prevCommitments.filter(c => c.rolloverResolution === 'written_off' && c.writeOffReason);
+                                        if (writeOffs.length === 0) return null;
+                                        return (
+                                            <div className="ui-card !p-3 border-amber-200 bg-amber-50/60">
+                                                <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-1.5">Written-off commitments from last week</p>
+                                                <div className="space-y-1.5">
+                                                    {writeOffs.map(c => {
+                                                        const owner = members.find(mm => mm.id === c.memberId);
+                                                        return (
+                                                            <p key={c.id} className="text-xs text-slate-700">
+                                                                <span className="font-semibold">{owner?.name || 'Unknown'}:</span> "{c.description}" — <span className="italic text-amber-800">{c.writeOffReason}</span>
+                                                            </p>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                     <textarea
                                         className="w-full h-64 p-3 bg-slate-50 rounded-lg border border-slate-200 focus:bg-white focus:border-brand-navy outline-none text-sm resize-none transition-colors"
                                         placeholder={currentStepId === 3 ? "Record key wins or learnings here..." : "List any obstacles preventing execution..."}

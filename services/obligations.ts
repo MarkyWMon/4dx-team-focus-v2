@@ -1,5 +1,5 @@
 import { AppView, Commitment, TeamMember, WIGSession } from '../types';
-import { getWigDayOfWeek } from '../utils';
+import { getWigDayOfWeek, getPreviousWeekId } from '../utils';
 
 export type NudgeSeverity = 'info' | 'warn' | 'urgent';
 
@@ -53,6 +53,25 @@ export function computeNudges(params: {
         : `${open.length} commitment${open.length === 1 ? '' : 's'} still open this week.`,
       actionLabel: 'Review',
       view: AppView.MY_COMMITMENTS,
+    });
+  }
+
+  // Unmet commitments from last week must be carried forward or written off —
+  // they never just disappear.
+  const prevWeekId = getPreviousWeekId(currentWeekId);
+  const unresolved = commitments.filter(c =>
+    c.memberId === currentUser.id
+    && c.weekId === prevWeekId
+    && c.status !== 'completed'
+    && !c.rolloverResolution
+  );
+  if (unresolved.length > 0) {
+    nudges.push({
+      id: 'rollover-pending',
+      severity: 'warn',
+      message: `${unresolved.length} unfinished commitment${unresolved.length === 1 ? '' : 's'} from last week need${unresolved.length === 1 ? 's' : ''} carrying over or writing off.`,
+      actionLabel: 'Resolve',
+      view: AppView.DASHBOARD,
     });
   }
 

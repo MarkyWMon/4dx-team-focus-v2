@@ -95,6 +95,11 @@ export interface Commitment {
   verifiedBy?: string;
   verifiedAt?: number;
   verifiedInSessionId?: string;
+  // Week rollover: unmet commitments don't silently expire — they get carried
+  // to the next week or written off with a reason (which feeds Clear the Path).
+  carriedFromWeekId?: string;
+  rolloverResolution?: 'carried' | 'written_off';
+  writeOffReason?: string;
 }
 
 export interface LeadMeasure {

@@ -362,6 +362,42 @@ export const StorageService = {
     await setDoc(doc(db, "commitments", id), newCommitment);
   },
 
+  /**
+   * Week rollover: recreate an unmet commitment in a new week and mark the
+   * original as carried, so it stops prompting.
+   */
+  carryCommitmentForward: async (source: Commitment, toWeekId: string): Promise<void> => {
+    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const now = Date.now();
+    const newCommitment: Commitment = {
+      id,
+      memberId: source.memberId,
+      weekId: toWeekId,
+      description: source.description,
+      status: 'incomplete',
+      createdAt: now,
+      statusHistory: [{ status: 'incomplete', at: now }],
+      alignedByAI: source.alignedByAI || false,
+      carriedFromWeekId: source.weekId,
+    };
+    if (source.leadMeasureId) newCommitment.leadMeasureId = source.leadMeasureId;
+    if (source.leadMeasureName) newCommitment.leadMeasureName = source.leadMeasureName;
+    await setDoc(doc(db, "commitments", id), newCommitment);
+    await setDoc(doc(db, "commitments", source.id), { rolloverResolution: 'carried', updatedAt: now }, { merge: true });
+  },
+
+  /**
+   * Week rollover: close the book on an unmet commitment with a reason.
+   * Reasons surface in the WIG session's Clear the Path step.
+   */
+  writeOffCommitment: async (source: Commitment, reason: string): Promise<void> => {
+    await setDoc(doc(db, "commitments", source.id), {
+      rolloverResolution: 'written_off',
+      writeOffReason: reason,
+      updatedAt: Date.now(),
+    }, { merge: true });
+  },
+
   updateMember: async (id: string, updates: Partial<TeamMember>): Promise<void> => {
     await setDoc(doc(db, "members", id), updates, { merge: true });
   },

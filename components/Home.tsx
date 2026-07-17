@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AppView, Commitment, SurveyResult, TeamMember, WIGConfig, WIGSession, CommitmentStatus } from '../types';
 import { getWeekId, getPreviousWeekId, getWigDayOfWeek, formatDateShort, WIN_THRESHOLD } from '../utils';
 import { Nudge } from '../services/obligations';
+import { StorageService } from '../services/storage';
 import ProofModal from './ProofModal';
 
 interface HomeProps {
@@ -43,6 +44,9 @@ const Home: React.FC<HomeProps> = ({
 }) => {
   const [composerText, setComposerText] = useState('');
   const [proofTarget, setProofTarget] = useState<{ commitment: Commitment; preset?: CommitmentStatus } | null>(null);
+  const [writeOffFor, setWriteOffFor] = useState<string | null>(null);
+  const [writeOffReason, setWriteOffReason] = useState('');
+  const [resolvingRollover, setResolvingRollover] = useState<string | null>(null);
 
   const currentWeekId = getWeekId();
   const leadMeasures = wigConfig?.leadMeasures || [];
@@ -51,6 +55,41 @@ const Home: React.FC<HomeProps> = ({
   const myWeek = useMemo(() => weekCommitments.filter(c => c.memberId === currentUser.id), [weekCommitments, currentUser.id]);
   const myDone = myWeek.filter(c => c.status === 'completed').length;
   const isFull = myWeek.length >= 3;
+
+  // Unmet commitments from last week awaiting a rollover decision.
+  const rolloverItems = useMemo(() => {
+    const prevWeekId = getPreviousWeekId(currentWeekId);
+    return commitments.filter(c =>
+      c.memberId === currentUser.id
+      && c.weekId === prevWeekId
+      && c.status !== 'completed'
+      && !c.rolloverResolution
+    );
+  }, [commitments, currentUser.id, currentWeekId]);
+
+  const handleCarry = async (c: Commitment) => {
+    if (isFull || resolvingRollover) return;
+    setResolvingRollover(c.id);
+    try {
+      await StorageService.carryCommitmentForward(c, currentWeekId);
+    } finally {
+      setResolvingRollover(null);
+    }
+  };
+
+  const handleWriteOff = async (c: Commitment) => {
+    if (resolvingRollover) return;
+    const reason = writeOffReason.trim();
+    if (reason.length < 5) return;
+    setResolvingRollover(c.id);
+    try {
+      await StorageService.writeOffCommitment(c, reason);
+      setWriteOffFor(null);
+      setWriteOffReason('');
+    } finally {
+      setResolvingRollover(null);
+    }
+  };
 
   // WIG lag score — same derivation as the old dashboard (survey averages → %).
   const currentScore = useMemo(() => {
@@ -178,6 +217,58 @@ const Home: React.FC<HomeProps> = ({
             {topNudge.actionLabel}
           </button>
         </div>
+      )}
+
+      {/* Rollover: last week's unmet commitments must be carried or written off */}
+      {rolloverItems.length > 0 && (
+        <section className="ui-card border-amber-200 bg-amber-50/60">
+          <div className="flex items-baseline gap-2 mb-1">
+            <h2 className="text-sm font-semibold text-slate-900">Unfinished from last week</h2>
+            <span className="text-[10px] text-amber-700 ml-auto">carry it over or write it off — it doesn't just disappear</span>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {rolloverItems.map(c => (
+              <div key={c.id} className="py-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm text-slate-800 flex-grow">{c.description}</span>
+                  <button
+                    onClick={() => handleCarry(c)}
+                    disabled={isFull || resolvingRollover === c.id}
+                    title={isFull ? 'This week is already fully committed (3 of 3)' : undefined}
+                    className="ui-chip bg-brand-navy text-white hover:opacity-90 disabled:opacity-40 transition-all"
+                  >
+                    {resolvingRollover === c.id ? 'Carrying…' : 'Carry to this week'}
+                  </button>
+                  <button
+                    onClick={() => { setWriteOffFor(writeOffFor === c.id ? null : c.id); setWriteOffReason(''); }}
+                    className="ui-chip bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors"
+                  >
+                    Write off
+                  </button>
+                </div>
+                {writeOffFor === c.id && (
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      value={writeOffReason}
+                      onChange={e => setWriteOffReason(e.target.value)}
+                      placeholder="Why is this being dropped? (feeds Clear the Path in the WIG session)"
+                      className="flex-grow border border-slate-200 rounded-lg px-3 py-1.5 text-xs bg-white focus:border-brand-navy outline-none transition-colors"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => handleWriteOff(c)}
+                      disabled={writeOffReason.trim().length < 5 || resolvingRollover === c.id}
+                      className="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-xs font-semibold hover:opacity-90 disabled:opacity-40 transition-all shrink-0"
+                    >
+                      {resolvingRollover === c.id ? 'Saving…' : 'Confirm write-off'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          {isFull && <p className="text-[10px] text-amber-700 mt-2">This week is fully committed (3 of 3), so carrying is disabled — complete something first or write off.</p>}
+        </section>
       )}
 
       {/* My Week */}
